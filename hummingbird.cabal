@@ -1,0 +1,59 @@
+name:                hummingbird
+synopsis:            A multi-threaded MQTT broker.
+description:
+  The package installs `hummingbird` which is already a full-fledged MQTT
+  broker with configuration files, logging, authentication etc.
+
+  If this is not sufficient for your use case you might also consider to
+  assemble your own broker (i.e. with a custom authentication mechanism).
+version:             0.1.0.0
+license:             MIT
+license-file:        LICENSE
+author:              Lars Petersen
+maintainer:          info@lars-petersen.net
+category:            Network, IoT
+homepage:            https://github.com/lpeterse/haskell-hummingbird
+bug-reports:         https://github.com/lpeterse/haskell-hummingbird/issues
+extra-source-files:  README.md
+build-type:          Simple
+cabal-version:       >=1.10
+
+source-repository head
+  type:     git
+  location: git://github.com/lpeterse/haskell-hummingbird.git
+
+library
+  ghc-options:          -Wall
+  exposed-modules:      Hummingbird,
+                        Hummingbird.Configuration,
+                        Hummingbird.SimpleAuthenticator
+  build-depends:        base,
+                        mqtt,
+                        socket,
+                        text,
+                        bytestring,
+                        async,
+                        clock,
+                        tls,
+                        x509,
+                        x509-store,
+                        options,
+                        data-default-class,
+                        hslogger,
+                        aeson,
+                        yaml,
+                        containers,
+                        unordered-containers,
+                        bcrypt
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+executable hummingbird
+  build-depends:
+    base,
+    mqtt,
+    hummingbird
+  ghc-options:      -rtsopts -Wall -O2 -threaded -fprof-auto
+  default-language: Haskell2010
+  hs-source-dirs:   app
+  main-is:          hummingbird.hs

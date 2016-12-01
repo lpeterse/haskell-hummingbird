@@ -1,0 +1,48 @@
+auth:
+  credentials:
+    "mqtt-default":
+      "$2y$14$TGw4U5BrTdjspCOoM3zQFebNW0fTH3/YdoRRW3RbQoSnFM8jbBQAe"
+  permissions:
+    "mqtt-default":
+      "#":
+        "!": [ PUB, SUB ]
+
+servers:
+  - type: socket
+    bindAddress: 0.0.0.0
+    bindPort: 1883
+    listenBacklog: 5
+  - type: websocket
+    transport:
+      type: socket
+      bindAddress: 0.0.0.0
+      bindPort: 1884
+      listenBacklog: 5
+#  - type: tls
+#    transport:
+#      type: socket
+#      bindAddress: 0.0.0.0
+#      bindPort: 8883
+#      listenBacklog: 5
+#    wantClientCert: true
+#    caFilePath: ca.pem
+#    crtFilePath: my-cert.crt
+#    keyFilePath: my-key.pem
+#  - type: websocket
+#    transport:
+#      type: tls
+#      transport:
+#        type: socket
+#        bindAddress: 0.0.0.0
+#        bindPort: 8884
+#        listenBacklog: 5
+#      wantClientCert: false
+#      caFilePath: ca.pem
+#      crtFilePath: my-cert.crt
+#      keyFilePath: my-key.pem
+
+logging:
+  level: DEBUG
+  appenders:
+    - type: syslog
+    - type: console
