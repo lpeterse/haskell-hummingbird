@@ -6,5 +6,5 @@ import           Hummingbird.SimpleAuthenticator
 
 main :: IO ()
 main = do
-  cfg <- Hummingbird.loadConfig :: IO (Config (AuthenticatorConfig SimpleAuthenticator))
+  cfg <- Hummingbird.loadConfig :: IO (Config SimpleAuthenticator)
   Hummingbird.runWithConfig cfg

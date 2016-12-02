@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Hummingbird.Configuration where
 
 import           Data.Aeson
@@ -13,9 +14,10 @@ import qualified Data.Text                as T
 import           Data.Word
 import qualified Data.Yaml                as Yaml
 import qualified Network.MQTT.RoutingTree as R
+import           Network.MQTT.Authentication
 import qualified System.Log.Logger        as Log
 
-loadConfigFromFile :: FromJSON auth => FilePath -> IO (Either String (Config auth))
+loadConfigFromFile :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => FilePath -> IO (Either String (Config auth))
 loadConfigFromFile path = do
   ec <- Yaml.decodeFileEither path
   pure $ case ec of
@@ -26,7 +28,7 @@ data Config auth
    = Config
      { servers :: [ServerConfig]
      , logging :: LogConfig
-     , auth    :: auth
+     , auth    :: AuthenticatorConfig auth
      }
 
 data ServerConfig
@@ -86,7 +88,7 @@ data LogAppender
    | ConsoleAppender
    deriving (Eq, Ord, Show)
 
-instance FromJSON auth => FromJSON (Config auth) where
+instance (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => FromJSON (Config auth) where
   parseJSON (Object v) = Config
     <$> v .: "servers"
     <*> v .: "logging"

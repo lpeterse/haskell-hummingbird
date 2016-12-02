@@ -44,7 +44,7 @@ instance Options MainOptions where
   defineOptions = pure MainOptions
     <*> simpleOption "config" "settings.yaml" "Path to .yaml configuration file"
 
-loadConfig :: FromJSON (AuthenticatorConfig auth) => IO (Config (AuthenticatorConfig auth))
+loadConfig :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => IO (Config auth)
 loadConfig =
   runCommand $ \opts _-> do
     ec <- loadConfigFromFile (optConfigFilePath opts)
@@ -52,7 +52,7 @@ loadConfig =
       Left e  -> hPutStrLn stderr e >> exitFailure
       Right c -> pure c
 
-runWithConfig :: Authenticator auth => Config (AuthenticatorConfig auth) -> IO ()
+runWithConfig :: (Authenticator auth) => Config auth -> IO ()
 runWithConfig conf = do
   LOG.removeAllHandlers
   LOG.updateGlobalLogger LOG.rootLoggerName (LOG.setLevel $ logLevel $ logging conf)
@@ -71,7 +71,7 @@ runWithConfig conf = do
   void $ async (pingThread broker)
   forConcurrently_ (servers conf) (runServerWithConfig broker)
 
-runServerWithConfig :: (Authenticator auth) => Broker.Broker auth -> ServerConfig -> IO ()
+runServerWithConfig :: Authenticator auth => Broker.Broker auth -> ServerConfig -> IO ()
 runServerWithConfig broker serverConfig = case serverConfig of
   SocketServer {} -> do
     cfg <- createSocketConfig serverConfig
