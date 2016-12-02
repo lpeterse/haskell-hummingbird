@@ -1,21 +1,22 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Hummingbird.Configuration where
 
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.Functor.Identity
-import qualified Data.HashMap.Strict      as HM
-import qualified Data.Map                 as M
+import qualified Data.HashMap.Strict         as HM
+import           Data.Int
+import qualified Data.Map                    as M
 import           Data.String
-import qualified Data.Text                as T
+import qualified Data.Text                   as T
 import           Data.Word
-import qualified Data.Yaml                as Yaml
-import qualified Network.MQTT.RoutingTree as R
+import qualified Data.Yaml                   as Yaml
 import           Network.MQTT.Authentication
-import qualified System.Log.Logger        as Log
+import qualified Network.MQTT.RoutingTree    as R
+import qualified System.Log.Logger           as Log
 
 loadConfigFromFile :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => FilePath -> IO (Either String (Config auth))
 loadConfigFromFile path = do
@@ -32,16 +33,23 @@ data Config auth
      }
 
 data ServerConfig
-   = SocketServer
-     { bindAddress   :: T.Text
-     , bindPort      :: Word16
-     , listenBacklog :: Int
+   = ServerConfig
+     { srvMaxMessageSize :: Int64
+     , srvTransport      :: TransportConfig
      }
-   | WebSocketServer
-     { transport   :: ServerConfig
+  deriving (Eq, Ord, Show)
+
+data TransportConfig
+   = SocketTransport
+     { bindAddress       :: T.Text
+     , bindPort          :: Word16
+     , listenBacklog     :: Int
      }
-   | TlsServer
-     { tlsTransport      :: ServerConfig
+   | WebSocketTransport
+     { transport         :: TransportConfig
+     }
+   | TlsTransport
+     { tlsTransport      :: TransportConfig
      , tlsWantClientCert :: Bool
      , tlsCaFilePath     :: FilePath
      , tlsCrtFilePath    :: FilePath
@@ -124,20 +132,26 @@ instance FromJSON LogAppender where
   parseJSON invalid = typeMismatch "LogAppender" invalid
 
 instance FromJSON ServerConfig where
+  parseJSON (Object v) = ServerConfig
+    <$> v .:? "maxMessageSize" .!= (1024*1024)
+    <*> v .: "transport"
+  parseJSON invalid = typeMismatch "ServerConfig" invalid
+
+instance FromJSON TransportConfig where
   parseJSON (Object v) = do
     t <- v .: "type" :: Parser String
     case t of
-      "socket" -> SocketServer
+      "websocket" -> WebSocketTransport
+        <$> v .: "transport"
+      "socket" -> SocketTransport
         <$> v .: "bindAddress"
         <*> v .: "bindPort"
         <*> v .: "listenBacklog"
-      "websocket" -> WebSocketServer
-        <$> v .: "transport"
-      "tls" -> TlsServer
+      "tls" -> TlsTransport
         <$> v .: "transport"
         <*> v .: "wantClientCert"
         <*> v .: "caFilePath"
         <*> v .: "crtFilePath"
         <*> v .: "keyFilePath"
       _ -> fail "Expected 'socket', 'websocket' or 'tls'."
-  parseJSON invalid = typeMismatch "ServerConfig" invalid
+  parseJSON invalid = typeMismatch "TransportConfig" invalid

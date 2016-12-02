@@ -8,16 +8,20 @@ auth:
         "!": [ PUB, SUB ]
 
 servers:
-  - type: socket
-    bindAddress: 0.0.0.0
-    bindPort: 1883
-    listenBacklog: 5
-  - type: websocket
+  - maxMessageSize: 1024
     transport:
       type: socket
       bindAddress: 0.0.0.0
-      bindPort: 1884
+      bindPort: 1883
       listenBacklog: 5
+  - maxMessageSize: 1024
+    transport:
+      type: websocket
+      transport:
+        type: socket
+        bindAddress: 0.0.0.0
+        bindPort: 1884
+        listenBacklog: 5
 #  - type: tls
 #    transport:
 #      type: socket

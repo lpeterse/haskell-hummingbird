@@ -72,47 +72,51 @@ runWithConfig conf = do
   forConcurrently_ (servers conf) (runServerWithConfig broker)
 
 runServerWithConfig :: Authenticator auth => Broker.Broker auth -> ServerConfig -> IO ()
-runServerWithConfig broker serverConfig = case serverConfig of
-  SocketServer {} -> do
-    cfg <- createSocketConfig serverConfig
+runServerWithConfig broker serverConfig = case srvTransport serverConfig of
+  SocketTransport {} -> do
+    cfg <- createSocketConfig (srvTransport serverConfig)
     let mqttConfig = Server.MqttServerConfig {
+        Server.mqttMaxMessageSize  = srvMaxMessageSize serverConfig,
         Server.mqttTransportConfig = cfg
       } :: SS.ServerConfig (Server.MQTT (S.Socket S.Inet S.Stream S.Default))
-    runServerStack broker mqttConfig
-  TlsServer {} -> do
-    cfg <- createSecureSocketConfig serverConfig
+    runServerStack mqttConfig broker
+  TlsTransport {} -> do
+    cfg <- createSecureSocketConfig (srvTransport serverConfig)
     let mqttConfig = Server.MqttServerConfig {
+        Server.mqttMaxMessageSize  = srvMaxMessageSize serverConfig,
         Server.mqttTransportConfig = cfg
       }
-    runServerStack broker mqttConfig
-  WebSocketServer socketConfig@SocketServer {} -> do
+    runServerStack mqttConfig broker
+  WebSocketTransport socketConfig@SocketTransport {} -> do
     cfg <- createSocketConfig socketConfig
     let mqttConfig = Server.MqttServerConfig {
+      Server.mqttMaxMessageSize  = srvMaxMessageSize serverConfig,
       Server.mqttTransportConfig = SS.WebSocketServerConfig {
         SS.wsTransportConfig = cfg
       }
     }
-    runServerStack broker mqttConfig
-  WebSocketServer tlsConfig@TlsServer {} -> do
+    runServerStack mqttConfig broker
+  WebSocketTransport tlsConfig@TlsTransport {} -> do
     cfg <- createSecureSocketConfig tlsConfig
     let mqttConfig = Server.MqttServerConfig {
+      Server.mqttMaxMessageSize  = srvMaxMessageSize serverConfig,
       Server.mqttTransportConfig = SS.WebSocketServerConfig {
         SS.wsTransportConfig = cfg
       }
     }
-    runServerStack broker mqttConfig
+    runServerStack mqttConfig broker
   _ -> error "Server stack not implemented."
   where
-    createSocketConfig :: ServerConfig -> IO (SS.ServerConfig (S.Socket S.Inet S.Stream S.Default))
-    createSocketConfig (SocketServer a p b) = do
-      [addrinfo] <- S.getAddressInfo (Just $ T.encodeUtf8 a) (Just $ T.encodeUtf8 $ T.pack $ show p) (mconcat [S.aiNumericHost, S.aiNumericService]) :: IO [S.AddressInfo S.Inet S.Stream S.Default]
+    createSocketConfig :: TransportConfig -> IO (SS.ServerConfig (S.Socket S.Inet S.Stream S.Default))
+    createSocketConfig (SocketTransport a p b) = do
+      (addrinfo:_) <- S.getAddressInfo (Just $ T.encodeUtf8 a) (Just $ T.encodeUtf8 $ T.pack $ show p) (mconcat [S.aiNumericHost, S.aiNumericService]) :: IO [S.AddressInfo S.Inet S.Stream S.Default]
       pure SS.SocketServerConfig {
             SS.socketServerConfigBindAddress = S.socketAddress addrinfo
           , SS.socketServerConfigListenQueueSize = b
         }
     createSocketConfig _ = error "not a socket config"
-    createSecureSocketConfig :: ServerConfig -> IO (SS.ServerConfig (SS.TLS (S.Socket S.Inet S.Stream S.Default)))
-    createSecureSocketConfig (TlsServer tc cc ca crt key) = do
+    createSecureSocketConfig :: TransportConfig -> IO (SS.ServerConfig (SS.TLS (S.Socket S.Inet S.Stream S.Default)))
+    createSecureSocketConfig (TlsTransport tc cc ca crt key) = do
       mcs <- X509.readCertificateStore ca
       case mcs of
         Nothing -> do
@@ -140,10 +144,10 @@ runServerWithConfig broker serverConfig = case serverConfig of
                   }
     createSecureSocketConfig _ = error "not a tls config"
 
-runServerStack :: (Authenticator auth, SS.StreamServerStack transport, Server.MqttServerTransportStack transport) => Broker.Broker auth -> SS.ServerConfig (Server.MQTT transport) -> IO ()
-runServerStack broker stackConfig =
-  SS.withServer stackConfig $ \server-> forever $ SS.withConnection server $ \connection info->
-    Server.handleConnection broker connection info
+runServerStack :: (Authenticator auth, SS.StreamServerStack transport, Server.MqttServerTransportStack transport) => SS.ServerConfig (Server.MQTT transport) -> Broker.Broker auth -> IO ()
+runServerStack serverConfig broker =
+  SS.withServer serverConfig $ \server-> forever $ SS.withConnection server $ \connection info->
+    Server.handleConnection broker serverConfig connection info
 
 pingThread :: Broker.Broker auth -> IO ()
 pingThread broker = forM_ [0..] $ \uptime-> do
