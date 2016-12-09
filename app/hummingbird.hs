@@ -1,10 +1,10 @@
 module Main where
 
+import           Data.Proxy
+
 import           Hummingbird.Configuration
-import qualified Hummingbird ( loadConfig, runWithConfig )
+import qualified Hummingbird ( runCommandLine )
 import           Hummingbird.SimpleAuthenticator
 
 main :: IO ()
-main = do
-  cfg <- Hummingbird.loadConfig :: IO (Config SimpleAuthenticator)
-  Hummingbird.runWithConfig cfg
+main = Hummingbird.runCommandLine (Proxy :: Proxy (Config SimpleAuthenticator) )

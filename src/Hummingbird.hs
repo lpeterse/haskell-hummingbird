@@ -3,13 +3,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies      #-}
 module Hummingbird
-  ( loadConfig, runWithConfig ) where
+  ( runCommandLine, runWithConfig ) where
 
 import           Control.Concurrent
 import           Control.Concurrent.Async
 import           Control.Monad
+import qualified Crypto.BCrypt                  as BCrypt
 import           Data.Aeson
+import qualified Data.ByteString                as BS
+import           Data.Default
 import           Data.Default.Class
+import           Data.Proxy
 import           Data.String
 import qualified Data.Text                      as T
 import qualified Data.Text.Encoding             as T
@@ -38,19 +42,42 @@ import qualified System.Socket.Type.Stream      as S
 import           Hummingbird.Configuration
 
 data MainOptions = MainOptions
-  { optConfigFilePath :: FilePath }
+
+data ServerOptions = ServerOptions
+  { serverConfigFilePath :: FilePath }
+
+data PwhashOptions = PwhashOptions
 
 instance Options MainOptions where
   defineOptions = pure MainOptions
-    <*> simpleOption "config" "settings.yaml" "Path to .yaml configuration file"
 
-loadConfig :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => IO (Config auth)
-loadConfig =
-  runCommand $ \opts _-> do
-    ec <- loadConfigFromFile (optConfigFilePath opts)
-    case ec of
-      Left e  -> hPutStrLn stderr e >> exitFailure
-      Right c -> pure c
+instance Options ServerOptions where
+  defineOptions = ServerOptions
+    <$> simpleOption "config" "settings.yaml" "Path to .yaml configuration file"
+
+instance Options PwhashOptions where
+  defineOptions =pure PwhashOptions
+
+runCommandLine :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Proxy (Config auth) -> IO ()
+runCommandLine authConfigProxy = runSubcommand
+  [ subcommand "server" serverCommand
+  , subcommand "pwhash" pwhashCommand
+  ]
+  where
+    serverCommand :: MainOptions -> ServerOptions -> [String] -> IO ()
+    serverCommand _ opts _ = do
+      ec <- loadConfigFromFile (serverConfigFilePath opts)
+      case ec of
+        Left e    -> hPutStrLn stderr e >> exitFailure
+        Right cfg -> runWithConfig (cfg `asProxyTypeOf` authConfigProxy)
+    pwhashCommand :: MainOptions -> ServerOptions -> [String] -> IO ()
+    pwhashCommand _ _ _ = do
+      hSetEcho stdin False
+      password <- BS.getLine
+      mhash <- BCrypt.hashPasswordUsingPolicy BCrypt.slowerBcryptHashingPolicy password
+      case mhash of
+        Nothing   -> exitFailure
+        Just hash -> BS.putStrLn hash
 
 runWithConfig :: (Authenticator auth) => Config auth -> IO ()
 runWithConfig conf = do
