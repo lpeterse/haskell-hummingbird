@@ -80,10 +80,8 @@ instance FromJSON (R.RoutingTreeNode (Identity [Privilege])) where
   parseJSON (Object v) = do
     subtree  <- v .:? ">" .!= R.empty
     mpubsub  <- v .:? "!"
-    pure $ case mpubsub of
-      Nothing -> R.nodeFromTree subtree
-      Just pb -> R.nodeFromTreeAndValue subtree (Identity pb)
-  parseJSON _ = pure $ R.nodeFromTree R.empty
+    pure $ R.node subtree (Identity <$> mpubsub)
+  parseJSON _ = pure $ R.node R.empty Nothing
 
 data LogConfig
    = LogConfig

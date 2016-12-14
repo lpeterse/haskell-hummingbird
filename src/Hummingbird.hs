@@ -183,5 +183,5 @@ pingThread broker = forM_ [0..] $ \uptime-> do
   Broker.publishUpstream' broker (uptimeMsg (uptime :: Int))
   Broker.publishUpstream' broker (unixtimeMsg time)
   where
-    uptimeMsg uptime = Message "$SYS/uptime" (fromString $ show uptime) Qos0 False False
-    unixtimeMsg time = Message "$SYS/unixtime" (fromString $ show time) Qos0 False False
+    uptimeMsg uptime = Message "$SYS/uptime" (fromString $ show uptime) Qos0 False
+    unixtimeMsg time = Message "$SYS/unixtime" (fromString $ show time) Qos0 False
