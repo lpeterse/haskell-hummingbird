@@ -1,20 +1,20 @@
 auth:
   credentials:
     "mqtt-default":
-      "$2y$14$TGw4U5BrTdjspCOoM3zQFebNW0fTH3/YdoRRW3RbQoSnFM8jbBQAe"
+      "$2y$14$z1TeFmnk9zirP1Ml55lVyuOWOhaYyqlHlvd6meaze2KDYPH8hrdsS"
   permissions:
     "mqtt-default":
       "#":
         "!": [ PUB, SUB ]
 
 servers:
-  - maxMessageSize: 1024
+  - maxMessageSize: 100000
     transport:
       type: socket
       bindAddress: 0.0.0.0
       bindPort: 1883
       listenBacklog: 5
-  - maxMessageSize: 1024
+  - maxMessageSize: 100000
     transport:
       type: websocket
       transport:
@@ -46,7 +46,7 @@ servers:
 #      keyFilePath: my-key.pem
 
 logging:
-  level: DEBUG
+  level: INFO
   appenders:
-    - type: syslog
+#    - type: syslog
     - type: console

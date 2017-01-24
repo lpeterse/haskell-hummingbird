@@ -39,9 +39,13 @@ import qualified System.Socket.Family.Inet      as S
 import qualified System.Socket.Protocol.Default as S
 import qualified System.Socket.Type.Stream      as S
 
+import qualified Hummingbird.AdminInterface     as Admin
 import           Hummingbird.Configuration
 
 data MainOptions = MainOptions
+
+data CliOptions = CliOptions
+  { cliSocketPath :: FilePath }
 
 data ServerOptions = ServerOptions
   { serverConfigFilePath :: FilePath }
@@ -51,26 +55,35 @@ data PwhashOptions = PwhashOptions
 instance Options MainOptions where
   defineOptions = pure MainOptions
 
+instance Options CliOptions where
+  defineOptions = CliOptions
+    <$> simpleOption "socket" "~/.hummingbird.socket" "Path to the servers administration socket (unix domain socket)"
+
 instance Options ServerOptions where
   defineOptions = ServerOptions
     <$> simpleOption "config" "settings.yaml" "Path to .yaml configuration file"
 
 instance Options PwhashOptions where
-  defineOptions =pure PwhashOptions
+  defineOptions = pure PwhashOptions
 
 runCommandLine :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Proxy (Config auth) -> IO ()
 runCommandLine authConfigProxy = runSubcommand
-  [ subcommand "server" serverCommand
+  [ subcommand "cli"    cliCommand
   , subcommand "pwhash" pwhashCommand
+  , subcommand "server" serverCommand
   ]
   where
+    cliCommand    :: MainOptions -> CliOptions -> [String] -> IO ()
+    cliCommand _ opts _ = Admin.run (cliSocketPath opts)
+
     serverCommand :: MainOptions -> ServerOptions -> [String] -> IO ()
     serverCommand _ opts _ = do
       ec <- loadConfigFromFile (serverConfigFilePath opts)
       case ec of
         Left e    -> hPutStrLn stderr e >> exitFailure
         Right cfg -> runWithConfig (cfg `asProxyTypeOf` authConfigProxy)
-    pwhashCommand :: MainOptions -> ServerOptions -> [String] -> IO ()
+
+    pwhashCommand :: MainOptions -> PwhashOptions -> [String] -> IO ()
     pwhashCommand _ _ _ = do
       hSetEcho stdin False
       password <- BS.getLine
@@ -96,6 +109,7 @@ runWithConfig conf = do
   authenticator <- newAuthenticator (auth conf)
   broker <- Broker.new authenticator
   void $ async (pingThread broker)
+  -- void $ async (Admin.runListeningSocket broker)
   forConcurrently_ (servers conf) (runServerWithConfig broker)
 
 runServerWithConfig :: Authenticator auth => Broker.Broker auth -> ServerConfig -> IO ()
@@ -178,7 +192,7 @@ runServerStack serverConfig broker =
 
 pingThread :: Broker.Broker auth -> IO ()
 pingThread broker = forM_ [0..] $ \uptime-> do
-  threadDelay 1000000
+  threadDelay 2000000
   time <- Clock.sec <$> Clock.getTime Clock.Realtime
   Broker.publishUpstream' broker (uptimeMsg (uptime :: Int))
   Broker.publishUpstream' broker (unixtimeMsg time)
