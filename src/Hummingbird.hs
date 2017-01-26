@@ -74,7 +74,7 @@ runCommandLine authConfigProxy = runSubcommand
   ]
   where
     cliCommand    :: MainOptions -> CliOptions -> [String] -> IO ()
-    cliCommand _ opts _ = Admin.run (cliSocketPath opts)
+    cliCommand _ opts _ = Admin.runCommandLineInterface (cliSocketPath opts)
 
     serverCommand :: MainOptions -> ServerOptions -> [String] -> IO ()
     serverCommand _ opts _ = do
@@ -108,9 +108,11 @@ runWithConfig conf = do
   LOG.infoM "hummingbird" "Started hummingbird MQTT message broker."
   authenticator <- newAuthenticator (auth conf)
   broker <- Broker.new authenticator
-  void $ async (pingThread broker)
-  -- void $ async (Admin.runListeningSocket broker)
-  forConcurrently_ (servers conf) (runServerWithConfig broker)
+  -- The following background tasks are forked off as Asyncs.
+  -- They will be cancelled automatically and won't outlive the main thread.
+  withSysTopicThread broker $ \_->
+    Admin.withAdminInterfaceThread broker $ \_->
+      forConcurrently_ (servers conf) (runServerWithConfig broker)
 
 runServerWithConfig :: Authenticator auth => Broker.Broker auth -> ServerConfig -> IO ()
 runServerWithConfig broker serverConfig = case srvTransport serverConfig of
@@ -190,8 +192,8 @@ runServerStack serverConfig broker =
   SS.withServer serverConfig $ \server-> forever $ SS.withConnection server $ \connection info->
     Server.handleConnection broker serverConfig connection info
 
-pingThread :: Broker.Broker auth -> IO ()
-pingThread broker = forM_ [0..] $ \uptime-> do
+withSysTopicThread :: Broker.Broker auth -> (Async () -> IO a) -> IO a
+withSysTopicThread broker = withAsync $ forM_ [0..] $ \uptime-> do
   threadDelay 2000000
   time <- Clock.sec <$> Clock.getTime Clock.Realtime
   Broker.publishUpstream' broker (uptimeMsg (uptime :: Int))
