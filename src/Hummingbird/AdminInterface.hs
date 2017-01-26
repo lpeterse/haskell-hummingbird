@@ -100,7 +100,7 @@ runCommandLineInterface path = bracket
             "broker"       -> printBrokerInfo
             "help"         -> printHelp
             "session"      -> printSessionList
-            _              -> H.outputStrLn $ red "Unknown command. Try 'help'!"
+            _              -> H.outputStrLn $ lightRed "Unknown command. Try 'help'!"
       where
 
         printBrokerInfo = request peer BrokerInfoRequest >>= \case
@@ -112,8 +112,7 @@ runCommandLineInterface path = bracket
           _ -> protocolViolation
           where
             format key value =
-              H.outputStrLn $ "\ESC[0;36m\STX" ++ key ++ ": \ESC[1;36m\STX" ++
-              value ++ "\ESC[0m\STX"
+              H.outputStrLn $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m\STX"
             formatUptime uptime =
               show days ++ " day" ++ (if days /= 1 then "s, " else ", ") ++
               leftPad 2 '0' (show hours) ++ ":" ++ leftPad 2 '0' (show minutes) ++ ":" ++ leftPad 2 '0' (show seconds)
@@ -130,11 +129,12 @@ runCommandLineInterface path = bracket
             leftPad 30 ' ' (show $ sessionClientIdentifier session)
           _ -> protocolViolation
           where
-            statusDot SessionConnected      = green dot
-            statusDot SessionConnectedClean = blue dot
-            statusDot SessionDisconnected   = red dot
+            statusDot SessionConnected      = lightGreen dot
+            statusDot SessionConnectedClean = lightBlue dot
+            statusDot SessionDisconnected   = lightRed dot
 
     printHelp = do
+      H.outputStrLn "broker                    : show broker stats"
       H.outputStrLn "help                      : show this help"
       H.outputStrLn "session"
       H.outputStrLn "  list                    : list all sessions"
@@ -176,17 +176,29 @@ leftPad i c s = replicate (i - length s) c ++ s
 rightPad :: Int -> Char -> String -> String
 rightPad i c s = s ++ replicate (i - length s) c
 
-grey  :: String -> String
-grey s = "\ESC[1;30m\STX" ++ s ++ "\ESC[0m\STX"
+purple  :: String -> String
+purple = color "0;35"
 
-green :: String -> String
-green s = "\ESC[1;32m\STX" ++ s ++ "\ESC[0m\STX"
+cyan  :: String -> String
+cyan = color "0;36"
 
-red   :: String -> String
-red s  = "\ESC[1;31m\STX" ++ s ++ "\ESC[0m\STX"
+darkGrey  :: String -> String
+darkGrey = color "1;30"
 
-blue  :: String -> String
-blue s = "\ESC[1;34m\STX" ++ s ++ "\ESC[0m\STX"
+lightRed   :: String -> String
+lightRed = color "1;31"
+
+lightGreen :: String -> String
+lightGreen = color "1;32"
+
+lightBlue  :: String -> String
+lightBlue = color "1;34"
+
+lightCyan  :: String -> String
+lightCyan = color "1;36"
+
+color :: String -> String -> String
+color c s = "\ESC[" ++ c ++ "m\STX" ++ s ++ "\ESC[0m\STX"
 
 dot   :: String
 dot    = "\x2022"
