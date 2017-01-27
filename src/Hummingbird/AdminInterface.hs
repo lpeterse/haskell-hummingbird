@@ -21,9 +21,11 @@ import qualified System.Socket.Protocol.TCP as S
 import qualified System.Socket.Type.Stream  as S
 import qualified Data.Text as T
 import qualified Data.IntMap as IM
+import qualified Data.IntSet as IS
 
 import qualified Network.MQTT.Broker        as Broker
 import qualified Network.MQTT.Session       as Session
+import qualified Network.MQTT.RoutingTree   as R
 
 withAdminInterfaceThread :: Broker.Broker auth -> (Async () -> IO a) -> IO a
 withAdminInterfaceThread broker = withAsync $
@@ -234,7 +236,7 @@ getBrokerInfo  :: Broker.Broker auth -> IO BrokerInfo
 getBrokerInfo broker = BrokerInfo
   <$> Broker.getUptime broker
   <*> (IM.size <$> Broker.getSessions broker)
-  <*> pure 0
+  <*> (R.foldl' (\acc set-> acc + IS.size set) 0 <$> Broker.getSubscriptions broker)
 
 sessionInfo :: Session.Session auth -> SessionInfo
 sessionInfo session = SessionInfo
