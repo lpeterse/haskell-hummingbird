@@ -227,7 +227,14 @@ run config broker = do
     -- accessible by owner and group.
     directoryMode <- Files.fileMode <$> Files.getFileStatus directory
     when (directoryMode .&. (Files.otherReadMode .|. Files.otherWriteMode .|. Files.otherExecuteMode) /= 0) $ do
-      hPutStrLn stderr $ "The directory containing the admin socket must not be world-accessible!"
+      hPutStrLn stderr $ show directory ++ " must not be world-accessible!"
+      exitFailure
+    -- Make sure the socket file does not already exist.
+    -- QUESTION: Is this a good idea? It could prevent automatic restart after
+    -- unclean shutdown.
+    exists <- Files.fileExist path
+    when exists $ do
+      hPutStrLn stderr $ show path ++ " already exists. Other broker running?"
       exitFailure
 
     case S.socketAddressUnixPath (T.encodeUtf8 $ T.pack path) of
