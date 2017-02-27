@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE LambdaCase        #-}
 module Hummingbird
   ( runCommandLine, runWithConfig ) where
 
@@ -43,25 +44,23 @@ import qualified Hummingbird.AdminInterface     as Admin
 import           Hummingbird.Configuration
 
 data MainOptions = MainOptions
+  { mainConfigFilePath :: FilePath }
 
 data CliOptions = CliOptions
-  { cliSocketPath :: FilePath }
 
 data ServerOptions = ServerOptions
-  { serverConfigFilePath :: FilePath }
 
 data PwhashOptions = PwhashOptions
 
 instance Options MainOptions where
-  defineOptions = pure MainOptions
+  defineOptions = MainOptions
+    <$> simpleOption "settings" "/etc/hummingbird/settings.yml" "Path to the .yaml configuration file"
 
 instance Options CliOptions where
-  defineOptions = CliOptions
-    <$> simpleOption "socket" "~/.hummingbird.socket" "Path to the servers administration socket (unix domain socket)"
+  defineOptions = pure CliOptions
 
 instance Options ServerOptions where
-  defineOptions = ServerOptions
-    <$> simpleOption "config" "settings.yaml" "Path to .yaml configuration file"
+  defineOptions = pure ServerOptions
 
 instance Options PwhashOptions where
   defineOptions = pure PwhashOptions
@@ -74,14 +73,14 @@ runCommandLine authConfigProxy = runSubcommand
   ]
   where
     cliCommand    :: MainOptions -> CliOptions -> [String] -> IO ()
-    cliCommand _ opts _ = Admin.runCommandLineInterface (cliSocketPath opts)
+    cliCommand mainOpts _ _ = loadConfigFromFile (mainConfigFilePath mainOpts) >>= \case
+      Left e    -> hPutStrLn stderr e >> exitFailure
+      Right cfg -> Admin.runCommandLineInterface (cfg `asProxyTypeOf` authConfigProxy)
 
     serverCommand :: MainOptions -> ServerOptions -> [String] -> IO ()
-    serverCommand _ opts _ = do
-      ec <- loadConfigFromFile (serverConfigFilePath opts)
-      case ec of
-        Left e    -> hPutStrLn stderr e >> exitFailure
-        Right cfg -> runWithConfig (cfg `asProxyTypeOf` authConfigProxy)
+    serverCommand mainOpts _ _ = loadConfigFromFile (mainConfigFilePath mainOpts) >>= \case
+      Left e    -> hPutStrLn stderr e >> exitFailure
+      Right cfg -> runWithConfig (cfg `asProxyTypeOf` authConfigProxy)
 
     pwhashCommand :: MainOptions -> PwhashOptions -> [String] -> IO ()
     pwhashCommand _ _ _ = do
@@ -111,8 +110,7 @@ runWithConfig conf = do
   -- The following background tasks are forked off as Asyncs.
   -- They will be cancelled automatically and won't outlive the main thread.
   withSysTopicThread broker $ \_->
-    Admin.withAdminInterfaceThread broker $ \_->
-      forConcurrently_ (servers conf) (runServerWithConfig broker)
+    Admin.run conf broker `race_` forConcurrently_ (servers conf) (runServerWithConfig broker)
 
 runServerWithConfig :: Authenticator auth => Broker.Broker auth -> ServerConfig -> IO ()
 runServerWithConfig broker serverConfig = case srvTransport serverConfig of
@@ -196,8 +194,8 @@ withSysTopicThread :: Broker.Broker auth -> (Async () -> IO a) -> IO a
 withSysTopicThread broker = withAsync $ forM_ [0..] $ \uptime-> do
   threadDelay 2000000
   time <- Clock.sec <$> Clock.getTime Clock.Realtime
-  Broker.publishUpstream' broker (uptimeMsg (uptime :: Int))
-  Broker.publishUpstream' broker (unixtimeMsg time)
+  Broker.publishDownstream broker (uptimeMsg (uptime :: Int))
+  Broker.publishDownstream broker (unixtimeMsg time)
   where
     uptimeMsg uptime = Message "$SYS/uptime" (fromString $ show uptime) Qos0 False
     unixtimeMsg time = Message "$SYS/unixtime" (fromString $ show time) Qos0 False

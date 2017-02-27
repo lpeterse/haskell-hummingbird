@@ -7,6 +7,9 @@ auth:
       "#":
         "!": [ PUB, SUB ]
 
+admin:
+  socketPath: "./hummingbird.socket"
+
 servers:
   - maxMessageSize: 100000
     transport:

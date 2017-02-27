@@ -27,16 +27,22 @@ loadConfigFromFile path = do
 
 data Config auth
    = Config
-     { servers :: [ServerConfig]
-     , logging :: LogConfig
-     , auth    :: AuthenticatorConfig auth
-     }
+   { admin   :: AdminConfig
+   , servers :: [ServerConfig]
+   , logging :: LogConfig
+   , auth    :: AuthenticatorConfig auth
+   }
+
+data AdminConfig
+   = AdminConfig
+   { adminSocketPath ::   FilePath
+   } deriving (Eq, Ord, Show)
 
 data ServerConfig
    = ServerConfig
-     { srvMaxMessageSize :: Int64
-     , srvTransport      :: TransportConfig
-     }
+   { srvMaxMessageSize :: Int64
+   , srvTransport      :: TransportConfig
+   }
   deriving (Eq, Ord, Show)
 
 data TransportConfig
@@ -96,7 +102,8 @@ data LogAppender
 
 instance (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => FromJSON (Config auth) where
   parseJSON (Object v) = Config
-    <$> v .: "servers"
+    <$> v .: "admin"
+    <*> v .: "servers"
     <*> v .: "logging"
     <*> v .: "auth"
   parseJSON invalid = typeMismatch "Config" invalid
@@ -128,6 +135,11 @@ instance FromJSON LogAppender where
       "console" -> pure ConsoleAppender
       _         -> fail "Expected 'syslog' or 'console'."
   parseJSON invalid = typeMismatch "LogAppender" invalid
+
+instance FromJSON AdminConfig where
+  parseJSON (Object v) = AdminConfig
+    <$> v .: "socketPath" .!= "/var/run/hummingbird/hummingbird.socket"
+  parseJSON invalid = typeMismatch "AdminConfig" invalid
 
 instance FromJSON ServerConfig where
   parseJSON (Object v) = ServerConfig

@@ -43,13 +43,16 @@ library
                         mqtt,
                         options,
                         socket,
+                        socket-unix,
                         text,
                         tls,
                         transformers,
                         unordered-containers,
                         x509-store,
                         x509,
-                        yaml
+                        yaml,
+                        unix,
+                        filepath
   hs-source-dirs:      src
   default-language:    Haskell2010
 
