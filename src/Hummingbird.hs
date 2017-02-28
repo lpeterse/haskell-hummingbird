@@ -40,7 +40,8 @@ import qualified System.Socket.Family.Inet      as S
 import qualified System.Socket.Protocol.Default as S
 import qualified System.Socket.Type.Stream      as S
 
-import qualified Hummingbird.AdminInterface     as Admin
+import qualified Hummingbird.Administration.CLI as Admin
+import qualified Hummingbird.Administration.Server as Admin
 import           Hummingbird.Configuration
 
 data MainOptions = MainOptions
@@ -48,7 +49,7 @@ data MainOptions = MainOptions
 
 data CliOptions = CliOptions
 
-data ServerOptions = ServerOptions
+data BrokerOptions = BrokerOptions
 
 data PwhashOptions = PwhashOptions
 
@@ -59,8 +60,8 @@ instance Options MainOptions where
 instance Options CliOptions where
   defineOptions = pure CliOptions
 
-instance Options ServerOptions where
-  defineOptions = pure ServerOptions
+instance Options BrokerOptions where
+  defineOptions = pure BrokerOptions
 
 instance Options PwhashOptions where
   defineOptions = pure PwhashOptions
@@ -69,7 +70,7 @@ runCommandLine :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => P
 runCommandLine authConfigProxy = runSubcommand
   [ subcommand "cli"    cliCommand
   , subcommand "pwhash" pwhashCommand
-  , subcommand "server" serverCommand
+  , subcommand "broker" brokerCommand
   ]
   where
     cliCommand    :: MainOptions -> CliOptions -> [String] -> IO ()
@@ -77,8 +78,8 @@ runCommandLine authConfigProxy = runSubcommand
       Left e    -> hPutStrLn stderr e >> exitFailure
       Right cfg -> Admin.runCommandLineInterface (cfg `asProxyTypeOf` authConfigProxy)
 
-    serverCommand :: MainOptions -> ServerOptions -> [String] -> IO ()
-    serverCommand mainOpts _ _ = loadConfigFromFile (mainConfigFilePath mainOpts) >>= \case
+    brokerCommand :: MainOptions -> BrokerOptions -> [String] -> IO ()
+    brokerCommand mainOpts _ _ = loadConfigFromFile (mainConfigFilePath mainOpts) >>= \case
       Left e    -> hPutStrLn stderr e >> exitFailure
       Right cfg -> runWithConfig (cfg `asProxyTypeOf` authConfigProxy)
 
@@ -110,7 +111,7 @@ runWithConfig conf = do
   -- The following background tasks are forked off as Asyncs.
   -- They will be cancelled automatically and won't outlive the main thread.
   withSysTopicThread broker $ \_->
-    Admin.run conf broker `race_` forConcurrently_ (servers conf) (runServerWithConfig broker)
+    Admin.runServerInterface conf broker `race_` forConcurrently_ (servers conf) (runServerWithConfig broker)
 
 runServerWithConfig :: Authenticator auth => Broker.Broker auth -> ServerConfig -> IO ()
 runServerWithConfig broker serverConfig = case srvTransport serverConfig of

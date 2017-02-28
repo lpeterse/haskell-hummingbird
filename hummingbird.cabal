@@ -25,8 +25,11 @@ source-repository head
 library
   ghc-options:          -Wall
   exposed-modules:      Hummingbird,
-                        Hummingbird.AdminInterface,
-                        Hummingbird.AdminInterface.Command,
+                        Hummingbird.Administration.CLI,
+                        Hummingbird.Administration.Request,
+                        Hummingbird.Administration.Response,
+                        Hummingbird.Administration.Escape,
+                        Hummingbird.Administration.Server,
                         Hummingbird.Configuration,
                         Hummingbird.SimpleAuthenticator
   build-depends:        base,
