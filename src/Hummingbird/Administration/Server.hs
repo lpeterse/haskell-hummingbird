@@ -129,6 +129,9 @@ process Request.Sessions broker = do
       , Response.sessionStatus = Response.SessionConnectedClean
       , Response.sessionCreatedAt = 0
       , Response.sessionSubscriptionCount = 0
+      , Response.sessionQueueQos0 = (123,256)
+      , Response.sessionQueueQos1 = (0, 234)
+      , Response.sessionQueueQos2 = (34, 2347234)
       }
 
 process (Request.SessionsSelect sid) broker = do
@@ -152,7 +155,9 @@ process (Request.SessionsSelect sid) broker = do
         }
 
 process (Request.SessionsSelectDisconnect sid) broker =
-  pure (Response.Failure "NOT IMPLEMENTED")
+  try (Broker.disconnectSession broker sid) >>= \case
+    Right () -> pure Response.Success
+    Left e -> pure (Response.Failure $ show (e :: SomeException))
 
 process (Request.SessionsSelectTerminate sid) broker =
   try (Broker.terminateSession broker sid) >>= \case
