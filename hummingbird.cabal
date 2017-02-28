@@ -26,6 +26,7 @@ library
   ghc-options:          -Wall
   exposed-modules:      Hummingbird,
                         Hummingbird.AdminInterface,
+                        Hummingbird.AdminInterface.Command,
                         Hummingbird.Configuration,
                         Hummingbird.SimpleAuthenticator
   build-depends:        base,
@@ -52,7 +53,8 @@ library
                         x509,
                         yaml,
                         unix,
-                        filepath
+                        filepath,
+                        parsec
   hs-source-dirs:      src
   default-language:    Haskell2010
 
