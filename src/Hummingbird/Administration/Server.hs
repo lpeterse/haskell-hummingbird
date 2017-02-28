@@ -128,19 +128,28 @@ process Request.Sessions broker = do
       , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
       , Response.sessionStatus = Response.SessionConnectedClean
       , Response.sessionCreatedAt = 0
+      , Response.sessionSubscriptionCount = 0
       }
 
-process (Request.SessionsSelectInfo sid) broker = do
+process (Request.SessionsSelect sid) broker = do
   sessions <- Broker.getSessions broker
-  pure $ Response.SessionList $ fmap sessionInfo (IM.elems sessions)
+  case IM.lookup sid sessions of
+    Nothing -> pure (Response.Failure "session not found")
+    Just s  -> Response.Session <$> (sessionInfo s)
   where
-    sessionInfo :: Session.Session auth -> Response.SessionInfo
-    sessionInfo session = Response.SessionInfo
-      { Response.sessionIdentifier = Session.sessionIdentifier session
-      , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
-      , Response.sessionStatus = Response.SessionConnectedClean
-      , Response.sessionCreatedAt = 0
-      }
+    sessionInfo :: Session.Session auth -> IO Response.SessionInfo
+    sessionInfo session = do
+      subscriptions <- Session.getSubscriptions session
+      pure Response.SessionInfo
+        { Response.sessionIdentifier = Session.sessionIdentifier session
+        , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
+        , Response.sessionStatus = Response.SessionConnectedClean
+        , Response.sessionCreatedAt = Session.sessionCreatedAt session
+        , Response.sessionSubscriptionCount = R.size subscriptions
+        , Response.sessionQueueQos0 = (123,256)
+        , Response.sessionQueueQos1 = (0, 234)
+        , Response.sessionQueueQos2 = (34, 2347234)
+        }
 
 process (Request.SessionsSelectDisconnect sid) broker =
   pure (Response.Failure "NOT IMPLEMENTED")
@@ -149,3 +158,9 @@ process (Request.SessionsSelectTerminate sid) broker =
   try (Broker.terminateSession broker sid) >>= \case
     Right () -> pure Response.Success
     Left e -> pure (Response.Failure $ show (e :: SomeException))
+
+process (Request.SessionsSelectSubscriptions sid) broker = do
+  sessions <- Broker.getSessions broker
+  case IM.lookup sid sessions of
+    Nothing -> pure (Response.Failure "session not found")
+    Just s  -> Response.SessionSubscriptions <$> show <$> Session.getSubscriptions s

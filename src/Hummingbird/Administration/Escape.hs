@@ -43,3 +43,14 @@ color c s = "\ESC[" ++ c ++ "m\STX" ++ s ++ "\ESC[0m\STX"
 
 dot   :: String
 dot    = "\x2022"
+
+ago :: (Show a, Integral a) => a -> String
+ago uptime =
+  show days ++ " day" ++ (if days /= 1 then "s, " else ", ") ++
+  leftPad 2 '0' (show hours) ++ ":" ++ leftPad 2 '0' (show minutes) ++
+  ":" ++ leftPad 2 '0' (show seconds)
+  where
+    days   = quot uptime (24*3600)
+    hours   = rem uptime (24*3600) `quot` 3600
+    minutes = rem uptime 3600 `quot` 60
+    seconds = rem uptime 60

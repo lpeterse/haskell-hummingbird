@@ -19,22 +19,28 @@ data Response
    , brokerSessionCount      :: Int
    , brokerSubscriptionCount :: Int
    }
+   | Session SessionInfo
    | SessionList [SessionInfo]
+   | SessionSubscriptions String
    deriving (Eq, Ord, Show, Generic)
 
 data SessionInfo
    = SessionInfo
-   { sessionIdentifier       :: Int
-   , sessionClientIdentifier :: T.Text
-   , sessionStatus           :: SessionInfoStatus
-   , sessionCreatedAt        :: Int64
+   { sessionIdentifier        :: Int
+   , sessionClientIdentifier  :: T.Text
+   , sessionStatus            :: SessionInfoStatus
+   , sessionCreatedAt         :: Int64
+   , sessionSubscriptionCount :: Int
+   , sessionQueueQos0         :: (Int, Int)
+   , sessionQueueQos1         :: (Int, Int)
+   , sessionQueueQos2         :: (Int, Int)
    }
    deriving (Eq, Ord, Show, Generic)
 
 data SessionInfoStatus
   = SessionConnected
   | SessionConnectedClean
-  | SessionDisconnected
+  | SessionNotConnected
   deriving (Eq, Ord, Show, Generic)
 
 instance B.Binary Response
@@ -53,29 +59,36 @@ render p Help = do
     p "broker"
     p "  info                    : show broker information"
     p "sessions                  : list all sessions"
-    p "  [0-9]+                  : a certain session identified by id"
-    p "    info                  : show session information"
+    p "  [0-9]+                  : show session summary"
     p "    disconnect            : disconnect associated client (if any)"
+    p "    subscriptions         : show session subscriptions"
     p "    terminate             : terminate session (and disconnect client)"
 
 render p info@BrokerInfo {} = do
-    format "Version          " $ brokerVersion info
-    format "Uptime           " $ formatUptime (brokerUptime info)
-    format "Sessions         " $ show (brokerSessionCount info)
-    format "Subscriptions    " $ show (brokerSubscriptionCount info)
-    format "Throughput       " "20,454/s 9,779/s 15,831/s"
+  format "Version            " $ brokerVersion info
+  format "Uptime             " $ ago (brokerUptime info)
+  format "Sessions           " $ show (brokerSessionCount info)
+  format "Subscriptions      " $ show (brokerSubscriptionCount info)
+  format "Throughput         " "20,454/s 9,779/s 15,831/s"
   where
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m\STX"
-    formatUptime uptime =
-      show days ++ " day" ++ (if days /= 1 then "s, " else ", ") ++
-      leftPad 2 '0' (show hours) ++ ":" ++ leftPad 2 '0' (show minutes) ++
-      ":" ++ leftPad 2 '0' (show seconds)
-      where
-        days   = quot uptime (24*3600)
-        hours   = rem uptime (24*3600) `quot` 3600
-        minutes = rem uptime 3600 `quot` 60
-        seconds = rem uptime 60
+
+render p (Session s) = do
+  format "Status             " $ formatStatus (sessionStatus s)
+  format "Created            " $ show (sessionCreatedAt s)
+  format "Identifier         " $ show (sessionClientIdentifier s)
+  format "Subscriptions      " $ show (sessionSubscriptionCount s)
+  p $ cyan   "Queues"
+  format "  QoS 0            " $ show (fst $ sessionQueueQos0 s) ++ " / " ++ show (snd $ sessionQueueQos0 s)
+  format "  QoS 1            " $ show (fst $ sessionQueueQos1 s) ++ " / " ++ show (snd $ sessionQueueQos1 s)
+  format "  QoS 2            " $ show (fst $ sessionQueueQos2 s) ++ " / " ++ show (snd $ sessionQueueQos2 s)
+  where
+    format key value =
+      p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m\STX"
+    formatStatus SessionConnected      = lightGreen "connected"
+    formatStatus SessionConnectedClean = lightBlue  "connected with clean session flag"
+    formatStatus SessionNotConnected   = lightRed   "not connected"
 
 render p (SessionList ss) =
   forM_ ss $ \session->
@@ -85,4 +98,7 @@ render p (SessionList ss) =
   where
     statusDot SessionConnected      = lightGreen dot
     statusDot SessionConnectedClean = lightBlue dot
-    statusDot SessionDisconnected   = lightRed dot
+    statusDot SessionNotConnected   = lightRed dot
+
+render p (SessionSubscriptions s) =
+  p s

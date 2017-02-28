@@ -10,9 +10,10 @@ data Request
    = Help
    | Broker Broker
    | Sessions
-   | SessionsSelectInfo Int
+   | SessionsSelect Int
    | SessionsSelectDisconnect Int
    | SessionsSelectTerminate Int
+   | SessionsSelectSubscriptions Int
    deriving (Eq, Ord, Show, Generic)
 
 data Broker
@@ -40,10 +41,11 @@ requestParser = spaces >> choice
     sessions = spaces >> choice
       [ eof >> pure Sessions
       , (read <$> many1 digit :: Parser Int) >>= sessionsSelect
-     ]
+      ]
     sessionsSelect :: Int -> Parser Request
     sessionsSelect i = spaces >> choice
-      [ string "info"       >> spaces >> eof >> pure (SessionsSelectInfo i)
+      [ eof >> pure (SessionsSelect i)
       , string "disconnect" >> spaces >> eof >> pure (SessionsSelectDisconnect i)
       , string "terminate"  >> spaces >> eof >> pure (SessionsSelectTerminate i)
+      , string "subscriptions" >> spaces >> eof >> pure (SessionsSelectSubscriptions i)
       ]
