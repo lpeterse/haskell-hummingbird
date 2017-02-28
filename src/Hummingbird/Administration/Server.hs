@@ -120,19 +120,21 @@ process (Request.Broker _) broker =
 
 process Request.Sessions broker = do
   sessions <- Broker.getSessions broker
-  pure $ Response.SessionList $ fmap sessionInfo (IM.elems sessions)
+  Response.SessionList <$> mapM sessionInfo (IM.elems sessions)
   where
-    sessionInfo :: Session.Session auth -> Response.SessionInfo
-    sessionInfo session = Response.SessionInfo
-      { Response.sessionIdentifier = Session.sessionIdentifier session
-      , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
-      , Response.sessionStatus = Response.SessionConnectedClean
-      , Response.sessionCreatedAt = 0
-      , Response.sessionSubscriptionCount = 0
-      , Response.sessionQueueQos0 = (123,256)
-      , Response.sessionQueueQos1 = (0, 234)
-      , Response.sessionQueueQos2 = (34, 2347234)
-      }
+    sessionInfo :: Session.Session auth -> IO Response.SessionInfo
+    sessionInfo session = do
+      connection <- Session.getConnection session
+      pure Response.SessionInfo {
+          Response.sessionIdentifier = Session.sessionIdentifier session
+        , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
+        , Response.sessionCreatedAt = 0
+        , Response.sessionConnection = connection
+        , Response.sessionSubscriptionCount = 0
+        , Response.sessionQueueQos0 = (123, 256)
+        , Response.sessionQueueQos1 = (0, 234)
+        , Response.sessionQueueQos2 = (34, 2347234)
+        }
 
 process (Request.SessionsSelect sid) broker = do
   sessions <- Broker.getSessions broker
@@ -142,11 +144,12 @@ process (Request.SessionsSelect sid) broker = do
   where
     sessionInfo :: Session.Session auth -> IO Response.SessionInfo
     sessionInfo session = do
+      connection <- Session.getConnection session
       subscriptions <- Session.getSubscriptions session
       pure Response.SessionInfo
         { Response.sessionIdentifier = Session.sessionIdentifier session
         , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
-        , Response.sessionStatus = Response.SessionConnectedClean
+        , Response.sessionConnection = connection
         , Response.sessionCreatedAt = Session.sessionCreatedAt session
         , Response.sessionSubscriptionCount = R.size subscriptions
         , Response.sessionQueueQos0 = (123,256)

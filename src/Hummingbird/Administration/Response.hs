@@ -6,6 +6,12 @@ import qualified Data.Binary                       as B
 import           Data.Int
 import qualified Data.Text                         as T
 import           GHC.Generics                      (Generic)
+import           Network.MQTT.Session              (Connection,
+                                                    connectionCleanSession,
+                                                    connectionCreatedAt,
+                                                    connectionRemoteAddress,
+                                                    connectionSecure,
+                                                    connectionWebSocket)
 
 import           Hummingbird.Administration.Escape
 
@@ -28,7 +34,7 @@ data SessionInfo
    = SessionInfo
    { sessionIdentifier        :: Int
    , sessionClientIdentifier  :: T.Text
-   , sessionStatus            :: SessionInfoStatus
+   , sessionConnection        :: Maybe Connection
    , sessionCreatedAt         :: Int64
    , sessionSubscriptionCount :: Int
    , sessionQueueQos0         :: (Int, Int)
@@ -37,15 +43,8 @@ data SessionInfo
    }
    deriving (Eq, Ord, Show, Generic)
 
-data SessionInfoStatus
-  = SessionConnected
-  | SessionConnectedClean
-  | SessionNotConnected
-  deriving (Eq, Ord, Show, Generic)
-
 instance B.Binary Response
 instance B.Binary SessionInfo
-instance B.Binary SessionInfoStatus
 
 render :: Monad m => (String -> m ()) -> Response -> m ()
 render p Success =
@@ -75,9 +74,19 @@ render p info@BrokerInfo {} = do
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m\STX"
 
 render p (Session s) = do
-  format "Status             " $ formatStatus (sessionStatus s)
   format "Created            " $ show (sessionCreatedAt s)
   format "Identifier         " $ show (sessionClientIdentifier s)
+  case sessionConnection s of
+    Nothing -> format "Connection         " $ lightRed "not connected"
+    Just conn -> do
+      p $ cyan "Connection"
+      format "  Clean Session    " $ show (connectionCleanSession conn)
+      format "  Created          " $ show (connectionCreatedAt conn)
+      format "  Secure           " $ show (connectionSecure conn)
+      format "  WebSocket        " $ show (connectionWebSocket conn)
+      case connectionRemoteAddress conn of
+        Nothing   -> pure ()
+        Just addr -> format "  Remote Address   " $ show addr
   format "Subscriptions      " $ show (sessionSubscriptionCount s)
   p $ cyan   "Queues"
   format "  QoS 0            " $ show (fst $ sessionQueueQos0 s) ++ " / " ++ show (snd $ sessionQueueQos0 s)
@@ -86,19 +95,16 @@ render p (Session s) = do
   where
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m\STX"
-    formatStatus SessionConnected      = lightGreen "connected"
-    formatStatus SessionConnectedClean = lightBlue  "connected with clean session flag"
-    formatStatus SessionNotConnected   = lightRed   "not connected"
 
 render p (SessionList ss) =
   forM_ ss $ \session->
-    p $ statusDot (sessionStatus session) ++
+    p $ statusDot (sessionConnection session) ++
     leftPad 8 ' ' (show $ sessionIdentifier session) ++
     leftPad 30 ' ' (show $ sessionClientIdentifier session)
   where
-    statusDot SessionConnected      = lightGreen dot
-    statusDot SessionConnectedClean = lightBlue dot
-    statusDot SessionNotConnected   = lightRed dot
+    statusDot Nothing     = lightRed dot
+    statusDot (Just conn) | connectionCleanSession conn = lightBlue dot
+                          | otherwise                   = lightGreen dot
 
 render p (SessionSubscriptions s) =
   p s
