@@ -1,0 +1,14 @@
+[Unit]
+Description=Hummingbird MQTT Broker daemon
+Requires=network.target
+
+[Service]
+ExecStart=/usr/sbin/hummingbird broker --settings=/etc/hummingbird/settings.yaml
+Restart=on-failure
+User=hummingbird
+Group=hummingbird
+WorkingDirectory=/var/lib/hummingbird
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
