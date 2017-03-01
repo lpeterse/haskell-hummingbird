@@ -1,37 +1,37 @@
-{-# LANGUAGE LambdaCase    #-}
+{-# LANGUAGE LambdaCase #-}
 module Hummingbird.Administration.Server ( runServerInterface ) where
 
 import           Control.Concurrent.Async
-import           Control.Exception                  (SomeException, bracket,
-                                                     catch, try)
-import           Control.Monad                      (forever, void, when)
-import qualified Data.Binary                        as B
-import qualified Data.Binary.Get                    as B
-import qualified Data.Binary.Put                    as B
+import           Control.Exception                   (SomeException, bracket,
+                                                      catch, try)
+import           Control.Monad                       (forever, void, when)
+import qualified Data.Binary                         as B
+import qualified Data.Binary.Get                     as B
+import qualified Data.Binary.Put                     as B
 import           Data.Bits
-import qualified Data.ByteString                    as BS
-import qualified Data.IntMap                        as IM
-import qualified Data.IntSet                        as IS
-import qualified Data.Text                          as T
-import qualified Data.Text.Encoding                 as T
+import qualified Data.ByteString                     as BS
+import qualified Data.IntMap                         as IM
+import qualified Data.IntSet                         as IS
+import qualified Data.Text                           as T
+import qualified Data.Text.Encoding                  as T
 import           System.Exit
-import qualified System.FilePath                    as FilePath
-import           System.IO                          (hPutStrLn,                                                     stderr)
-import qualified System.Log.Logger                  as LOG
-import qualified System.Posix.Files                 as Files
-import qualified System.Socket                      as S
-import qualified System.Socket.Family.Unix          as S
-import qualified System.Socket.Protocol.Default     as S
-import qualified System.Socket.Type.Stream          as S
+import qualified System.FilePath                     as FilePath
+import           System.IO                           (hPutStrLn, stderr)
+import qualified System.Log.Logger                   as LOG
+import qualified System.Posix.Files                  as Files
+import qualified System.Socket                       as S
+import qualified System.Socket.Family.Unix           as S
+import qualified System.Socket.Protocol.Default      as S
+import qualified System.Socket.Type.Stream           as S
 
-import           Network.MQTT.Authentication (Authenticator)
-import qualified Network.MQTT.Broker                as Broker
-import qualified Network.MQTT.RoutingTree           as R
-import qualified Network.MQTT.Session               as Session
+import           Network.MQTT.Authentication         (Authenticator)
+import qualified Network.MQTT.Broker                 as Broker
+import qualified Network.MQTT.RoutingTree            as R
+import qualified Network.MQTT.Session                as Session
 
-import qualified Hummingbird.Administration.Request as Request
+import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
-import qualified Hummingbird.Configuration          as C
+import qualified Hummingbird.Configuration           as C
 
 runServerInterface :: Authenticator auth => C.Config auth -> Broker.Broker auth -> IO a
 runServerInterface config broker = do
