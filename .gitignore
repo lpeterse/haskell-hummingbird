@@ -4,3 +4,6 @@ dist
 *.aux
 *.hp
 *.ps
+*.crt
+*.pem
+hummingbird

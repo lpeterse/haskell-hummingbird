@@ -9,6 +9,7 @@ import qualified Data.Binary                         as B
 import qualified Data.Binary.Get                     as B
 import qualified Data.Binary.Put                     as B
 import           Data.Bits
+import Data.Proxy
 import qualified Data.ByteString                     as BS
 import qualified Data.IntMap                         as IM
 import qualified Data.IntSet                         as IS
@@ -32,10 +33,12 @@ import qualified Network.MQTT.Session                as Session
 import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
 import qualified Hummingbird.Configuration           as C
+import           Hummingbird.Broker
 
-runServerInterface :: Authenticator auth => C.Config auth -> Broker.Broker auth -> IO a
-runServerInterface config broker = do
-    let path = C.adminSocketPath $ C.admin config
+runServerInterface :: Authenticator auth => Proxy (C.Config auth) -> HummingbirdBroker auth -> IO a
+runServerInterface authProxy hum = do
+    config <- getConfig hum
+    let path = C.adminSocketPath $ C.admin (config `asProxyTypeOf` authProxy)
     let directory = FilePath.takeDirectory path
     -- Check parent directory permissions. The parent directory must only be
     -- accessible by owner and group.
@@ -74,6 +77,8 @@ runServerInterface config broker = do
               Right () -> LOG.infoM "Administration" "Administrator disconnected."
         )
   where
+    broker = humBroker hum
+
     acceptAndHandle server =
       bracket (S.accept server) (S.close . fst)
         (\(sock,_)-> do

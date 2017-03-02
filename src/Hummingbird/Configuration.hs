@@ -27,10 +27,10 @@ loadConfigFromFile path = do
 
 data Config auth
    = Config
-   { admin   :: AdminConfig
-   , servers :: [ServerConfig]
-   , logging :: LogConfig
-   , auth    :: AuthenticatorConfig auth
+   { auth       :: AuthenticatorConfig auth
+   , admin      :: AdminConfig
+   , transports :: [ TransportConfig  ]
+   , logging    :: LogConfig
    }
 
 data AdminConfig
@@ -102,10 +102,10 @@ data LogAppender
 
 instance (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => FromJSON (Config auth) where
   parseJSON (Object v) = Config
-    <$> v .: "admin"
-    <*> v .: "servers"
+    <$> v .: "auth"
+    <*> v .: "admin"
+    <*> v .: "transports"
     <*> v .: "logging"
-    <*> v .: "auth"
   parseJSON invalid = typeMismatch "Config" invalid
 
 instance FromJSON LogConfig where
@@ -140,12 +140,6 @@ instance FromJSON AdminConfig where
   parseJSON (Object v) = AdminConfig
     <$> v .: "socketPath" .!= "/var/run/hummingbird/hummingbird.socket"
   parseJSON invalid = typeMismatch "AdminConfig" invalid
-
-instance FromJSON ServerConfig where
-  parseJSON (Object v) = ServerConfig
-    <$> v .:? "maxMessageSize" .!= (1024*1024)
-    <*> v .: "transport"
-  parseJSON invalid = typeMismatch "ServerConfig" invalid
 
 instance FromJSON TransportConfig where
   parseJSON (Object v) = do

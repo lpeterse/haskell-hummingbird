@@ -2,9 +2,9 @@ module Main where
 
 import           Data.Proxy
 
+import qualified Hummingbird
 import           Hummingbird.Configuration
-import qualified Hummingbird ( runCommandLine )
 import           Hummingbird.SimpleAuthenticator
 
 main :: IO ()
-main = Hummingbird.runCommandLine (Proxy :: Proxy (Config SimpleAuthenticator) )
+main = Hummingbird.run (Proxy :: Proxy (Config SimpleAuthenticator) )

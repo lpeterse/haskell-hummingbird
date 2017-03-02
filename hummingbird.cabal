@@ -31,7 +31,9 @@ library
                         Hummingbird.Administration.Escape,
                         Hummingbird.Administration.Server,
                         Hummingbird.Configuration,
-                        Hummingbird.SimpleAuthenticator
+                        Hummingbird.SimpleAuthenticator,
+                        Hummingbird.Transport,
+                        Hummingbird.Broker
   build-depends:        base,
                         aeson,
                         async,

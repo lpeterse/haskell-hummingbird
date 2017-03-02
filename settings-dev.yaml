@@ -6,50 +6,47 @@ auth:
     "mqtt-default":
       "#":
         "!": [ PUB, SUB ]
+    "example":
+      "#":
+        "!": [ SUB ]
+      "subtree":
+        "!": [ PUB ]
+        ">":
+          "deep":
+            "!": [ PUB ]
+          "deeper":
+            ">":
+              "evendeeper":
+                ">":
+                  "#":
+                    "!": [PUB]
 
 admin:
-  socketPath: "/var/run/hummingbird/hummingbird.socket"
+  socketPath: "hummingbird.socket"
 
-servers:
-  - maxMessageSize: 100000
+transports:
+  - type: socket
+    bindAddress: 0.0.0.0
+    bindPort: 1883
+    listenBacklog: 5
+  - type: websocket
     transport:
       type: socket
       bindAddress: 0.0.0.0
-      bindPort: 1883
+      bindPort: 1884
       listenBacklog: 5
-  - maxMessageSize: 100000
+  - type: tls
     transport:
-      type: websocket
-      transport:
-        type: socket
-        bindAddress: 0.0.0.0
-        bindPort: 1884
-        listenBacklog: 5
-#  - type: tls
-#    transport:
-#      type: socket
-#      bindAddress: 0.0.0.0
-#      bindPort: 8883
-#      listenBacklog: 5
-#    wantClientCert: true
-#    caFilePath: ca.pem
-#    crtFilePath: my-cert.crt
-#    keyFilePath: my-key.pem
-#  - type: websocket
-#    transport:
-#      type: tls
-#      transport:
-#        type: socket
-#        bindAddress: 0.0.0.0
-#        bindPort: 8884
-#        listenBacklog: 5
-#      wantClientCert: false
-#      caFilePath: ca.pem
-#      crtFilePath: my-cert.crt
-#      keyFilePath: my-key.pem
+      type: socket
+      bindAddress: 0.0.0.0
+      bindPort: 8883
+      listenBacklog: 5
+    wantClientCert: false
+    caFilePath: ca.crt
+    crtFilePath: cert.crt
+    keyFilePath: cert.pem
 
 logging:
-  level: INFO
+  level: DEBUG
   appenders:
-    - type: syslog
     - type: console
