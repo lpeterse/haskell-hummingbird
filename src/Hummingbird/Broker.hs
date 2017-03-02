@@ -3,24 +3,9 @@ module Hummingbird.Broker where
 
 import           Control.Concurrent
 import           Control.Concurrent.Async
-import           Control.Concurrent.MVar
 import           Control.Monad
 import           Control.Exception
 import           Data.Aeson
-import qualified Data.ByteString                as BS
-import           Data.Default
-import           Data.Default.Class
-import           Data.Int
-import           Data.Proxy
-import           Data.String
-import qualified Data.Text                      as T
-import qualified Data.Text.Encoding             as T
-import qualified Data.X509.CertificateStore     as X509
-import qualified Network.Stack.Server           as SS
-import qualified Network.TLS                    as TLS
-import qualified Network.TLS.Extra.Cipher       as TLS
-import           Options
-import qualified System.Clock                   as Clock
 import           System.Exit
 import           System.IO
 import qualified System.Log.Formatter           as LOG
@@ -69,33 +54,33 @@ withBrokerFromSettingsPath settingsPath f = do
 
   authenticator <- Authentication.newAuthenticator (auth config)
   broker <- Broker.new authenticator
-  transport <- async $ runTransports broker (transports config)
+  trans <- async $ runTransports broker (transports config)
   mconfig <- newMVar config
-  mtransport <- newMVar transport
+  mtransports <- newMVar trans
 
   f HummingbirdBroker {
      humBroker    = broker
    , humConfig    = mconfig
-   , humTransport = mtransport
+   , humTransport = mtransports
    }
 
 getConfig :: HummingbirdBroker auth -> IO (Config auth)
 getConfig hum = readMVar (humConfig hum)
 
-transportStatus :: HummingbirdBroker auth -> IO Status
-transportStatus hum =
+getTransportsStatus :: HummingbirdBroker auth -> IO Status
+getTransportsStatus hum =
   withMVar (humTransport hum) $ poll >=> \case
     Nothing -> pure Running
     Just x  -> case x of
       Right () -> pure Stopped
       Left  e  -> pure (StoppedWithException e)
 
-transportStop :: HummingbirdBroker auth -> IO ()
-transportStop hum =
+stopTransports :: HummingbirdBroker auth -> IO ()
+stopTransports hum =
   withMVar (humTransport hum) cancel
 
-transportStart :: Authenticator auth => HummingbirdBroker auth -> IO ()
-transportStart hum =
+startTransports :: Authenticator auth => HummingbirdBroker auth -> IO ()
+startTransports hum =
   modifyMVar_ (humTransport hum) $ \asnc->
     poll asnc >>= \case
       -- Is already running. Leave as is.

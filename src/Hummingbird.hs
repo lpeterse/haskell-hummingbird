@@ -5,39 +5,16 @@
 {-# LANGUAGE TypeFamilies      #-}
 module Hummingbird ( run ) where
 
-import           Control.Concurrent
-import           Control.Concurrent.Async
-import           Control.Monad
 import qualified Crypto.BCrypt                     as BCrypt
 import           Data.Aeson
-import qualified Data.ByteString                   as BS
-import           Data.Default
-import           Data.Default.Class
-import           Data.Int
+import qualified Data.ByteString.Char8             as BS
 import           Data.Proxy
-import           Data.String
-import qualified Data.Text                         as T
-import qualified Data.Text.Encoding                as T
-import qualified Data.X509.CertificateStore        as X509
-
-import qualified Network.Stack.Server              as SS
-import qualified Network.TLS                       as TLS
-import qualified Network.TLS.Extra.Cipher          as TLS
 import           Options
-import qualified System.Clock                      as Clock
 import           System.Exit
 import           System.IO
-import qualified System.Log.Formatter              as LOG
-import qualified System.Log.Handler                as LOG hiding (setLevel)
-import qualified System.Log.Handler.Simple         as LOG
-import qualified System.Log.Handler.Syslog         as LOG
-import qualified System.Log.Logger                 as LOG
-import qualified System.Socket                     as S
-import qualified System.Socket.Family.Inet         as S
-import qualified System.Socket.Protocol.Default    as S
-import qualified System.Socket.Type.Stream         as S
 
-import           Network.MQTT.Authentication       (Authenticator, AuthenticatorConfig)
+import           Network.MQTT.Authentication       (Authenticator,
+                                                    AuthenticatorConfig)
 
 import qualified Hummingbird.Administration.CLI    as Admin
 import qualified Hummingbird.Administration.Server as Admin

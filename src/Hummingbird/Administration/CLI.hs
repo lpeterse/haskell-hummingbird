@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Hummingbird.Administration.CLI ( runCommandLineInterface ) where
 
-import           Control.Exception                   (SomeException, bracket)
+import           Control.Exception                   (bracket)
 import           Control.Monad                       (forever, void)
 import           Control.Monad.Trans.Class           (lift)
 import qualified Data.Binary                         as B
@@ -32,7 +32,7 @@ runCommandLineInterface config = H.runInputT H.defaultSettings $ do
   lift (execRequest $ Request.Broker Request.BrokerInfo) >>= Response.render H.outputStrLn
   H.outputStrLn ""
   forever $
-    Request.parse <$> fromMaybe "" <$> H.getInputLine prompt >>= \case
+    (Request.parse . fromMaybe "" <$> H.getInputLine prompt) >>= \case
       Right cmd  -> do
         response <- lift $ execRequest cmd
         Response.render H.outputStrLn response

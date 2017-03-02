@@ -18,7 +18,7 @@ import           Network.MQTT.Authentication
 import qualified Network.MQTT.RoutingTree    as R
 import qualified System.Log.Logger           as Log
 
-loadConfigFromFile :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => FilePath -> IO (Either String (Config auth))
+loadConfigFromFile :: (FromJSON (AuthenticatorConfig auth)) => FilePath -> IO (Either String (Config auth))
 loadConfigFromFile path = do
   ec <- Yaml.decodeFileEither path
   pure $ case ec of
@@ -33,7 +33,7 @@ data Config auth
    , logging    :: LogConfig
    }
 
-data AdminConfig
+newtype AdminConfig
    = AdminConfig
    { adminSocketPath ::   FilePath
    } deriving (Eq, Ord, Show)
@@ -100,7 +100,7 @@ data LogAppender
    | ConsoleAppender
    deriving (Eq, Ord, Show)
 
-instance (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => FromJSON (Config auth) where
+instance (FromJSON (AuthenticatorConfig auth)) => FromJSON (Config auth) where
   parseJSON (Object v) = Config
     <$> v .: "auth"
     <*> v .: "admin"

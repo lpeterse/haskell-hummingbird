@@ -1,35 +1,20 @@
-module Hummingbird.Transport (runTransports) where
+module Hummingbird.Transport ( runTransports ) where
 
-import           Control.Concurrent
 import           Control.Concurrent.Async
 import           Control.Monad
-import qualified Crypto.BCrypt                     as BCrypt
-import           Data.Aeson
-import qualified Data.ByteString                   as BS
 import           Data.Default
-import           Data.Default.Class
 import           Data.Int
-import           Data.Proxy
-import           Data.String
 import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as T
 import qualified Data.X509.CertificateStore        as X509
 import           Network.MQTT.Authentication
 import qualified Network.MQTT.Broker               as Broker
-import           Network.MQTT.Message
 import qualified Network.MQTT.Server               as Server
 import qualified Network.Stack.Server              as SS
 import qualified Network.TLS                       as TLS
 import qualified Network.TLS.Extra.Cipher          as TLS
-import           Options
-import qualified System.Clock                      as Clock
 import           System.Exit
 import           System.IO
-import qualified System.Log.Formatter              as LOG
-import qualified System.Log.Handler                as LOG hiding (setLevel)
-import qualified System.Log.Handler.Simple         as LOG
-import qualified System.Log.Handler.Syslog         as LOG
-import qualified System.Log.Logger                 as LOG
 import qualified System.Socket                     as S
 import qualified System.Socket.Family.Inet         as S
 import qualified System.Socket.Protocol.Default    as S
@@ -39,7 +24,7 @@ import           Hummingbird.Configuration
 
 runTransports :: Authenticator auth => Broker.Broker auth -> [ TransportConfig ] -> IO ()
 runTransports broker transportConfigs =
-  forConcurrently_ transportConfigs (runTransport broker)
+  void $ forConcurrently transportConfigs (runTransport broker)
 
 runTransport :: Authenticator auth => Broker.Broker auth -> TransportConfig -> IO ()
 runTransport broker transportConfig = case transportConfig of

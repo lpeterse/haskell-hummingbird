@@ -9,10 +9,10 @@ import qualified Data.Binary                         as B
 import qualified Data.Binary.Get                     as B
 import qualified Data.Binary.Put                     as B
 import           Data.Bits
-import Data.Proxy
 import qualified Data.ByteString                     as BS
 import qualified Data.IntMap                         as IM
 import qualified Data.IntSet                         as IS
+import           Data.Proxy
 import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
 import           System.Exit
@@ -32,8 +32,8 @@ import qualified Network.MQTT.Session                as Session
 
 import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
-import qualified Hummingbird.Configuration           as C
 import           Hummingbird.Broker
+import qualified Hummingbird.Configuration           as C
 
 runServerInterface :: Authenticator auth => Proxy (C.Config auth) -> HummingbirdBroker auth -> IO a
 runServerInterface authProxy hum = do
@@ -77,7 +77,6 @@ runServerInterface authProxy hum = do
               Right () -> LOG.infoM "Administration" "Administrator disconnected."
         )
   where
-    broker = humBroker hum
 
     acceptAndHandle server =
       bracket (S.accept server) (S.close . fst)
@@ -87,7 +86,7 @@ runServerInterface authProxy hum = do
             Nothing -> pure ()
             Just request -> do
               LOG.infoM "Administration" $ "Administrator executed command: " ++ show request
-              response <- process request broker
+              response <- process request hum
               sendMessage sock response
         ) `catch` (\e->
           LOG.infoM "Administration" $ "Administrator disconnected with " ++ show (e :: S.SocketException) ++ "."
@@ -112,19 +111,19 @@ runServerInterface authProxy hum = do
     sendMessage sock msg =
       void $ S.sendAllBuilder sock 4096 (B.execPut $ B.put msg) mempty
 
-process :: Authenticator auth => Request.Request -> Broker.Broker auth -> IO Response.Response
+process :: Authenticator auth => Request.Request -> HummingbirdBroker auth -> IO Response.Response
 process Request.Help _ =
   pure Response.Help
 
 process (Request.Broker _) broker =
   Response.BrokerInfo
   <$> pure "0.1.0-SNAPSHOT"
-  <*> Broker.getUptime broker
-  <*> (IM.size <$> Broker.getSessions broker)
-  <*> (R.foldl' (\acc set-> acc + IS.size set) 0 <$> Broker.getSubscriptions broker)
+  <*> Broker.getUptime (humBroker broker)
+  <*> (IM.size <$> Broker.getSessions (humBroker broker))
+  <*> (R.foldl' (\acc set-> acc + IS.size set) 0 <$> Broker.getSubscriptions (humBroker broker))
 
 process Request.Sessions broker = do
-  sessions <- Broker.getSessions broker
+  sessions <- Broker.getSessions (humBroker broker)
   Response.SessionList <$> mapM sessionInfo (IM.elems sessions)
   where
     sessionInfo :: Session.Session auth -> IO Response.SessionInfo
@@ -142,10 +141,10 @@ process Request.Sessions broker = do
         }
 
 process (Request.SessionsSelect sid) broker = do
-  sessions <- Broker.getSessions broker
+  sessions <- Broker.getSessions (humBroker broker)
   case IM.lookup sid sessions of
     Nothing -> pure (Response.Failure "session not found")
-    Just s  -> Response.Session <$> (sessionInfo s)
+    Just s  -> Response.Session <$> sessionInfo s
   where
     sessionInfo :: Session.Session auth -> IO Response.SessionInfo
     sessionInfo session = do
@@ -163,17 +162,33 @@ process (Request.SessionsSelect sid) broker = do
         }
 
 process (Request.SessionsSelectDisconnect sid) broker =
-  try (Broker.disconnectSession broker sid) >>= \case
-    Right () -> pure Response.Success
+  try (Broker.disconnectSession (humBroker broker) sid) >>= \case
+    Right () -> pure (Response.Success "Done.")
     Left e -> pure (Response.Failure $ show (e :: SomeException))
 
 process (Request.SessionsSelectTerminate sid) broker =
-  try (Broker.terminateSession broker sid) >>= \case
-    Right () -> pure Response.Success
+  try (Broker.terminateSession (humBroker broker) sid) >>= \case
+    Right () -> pure (Response.Success "Done.")
     Left e -> pure (Response.Failure $ show (e :: SomeException))
 
 process (Request.SessionsSelectSubscriptions sid) broker = do
-  sessions <- Broker.getSessions broker
+  sessions <- Broker.getSessions (humBroker broker)
   case IM.lookup sid sessions of
     Nothing -> pure (Response.Failure "session not found")
-    Just s  -> Response.SessionSubscriptions <$> show <$> Session.getSubscriptions s
+    Just s  -> Response.SessionSubscriptions . show <$> Session.getSubscriptions s
+
+process Request.TransportsStatus broker =
+  getTransportsStatus broker >>= \case
+    Running -> pure (Response.Success "Running.")
+    Stopped -> pure (Response.Success "Stopped.")
+    StoppedWithException e -> pure (Response.Failure $ "Stopped with exception: " ++ show e)
+
+process Request.TransportsStart broker =
+  try (startTransports broker) >>= \case
+    Right () -> pure (Response.Success "Done.")
+    Left e -> pure (Response.Failure $ show (e :: SomeException))
+
+process Request.TransportsStop broker =
+  try (stopTransports broker) >>= \case
+    Right () -> pure (Response.Success "Done.")
+    Left e -> pure (Response.Failure $ show (e :: SomeException))

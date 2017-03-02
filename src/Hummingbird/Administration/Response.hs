@@ -16,7 +16,7 @@ import           Network.MQTT.Session              (Connection,
 import           Hummingbird.Administration.Escape
 
 data Response
-   = Success
+   = Success String
    | Failure String
    | Help
    | BrokerInfo
@@ -47,11 +47,11 @@ instance B.Binary Response
 instance B.Binary SessionInfo
 
 render :: Monad m => (String -> m ()) -> Response -> m ()
-render p Success =
-  p (cyan "Success")
+render p (Success msg) =
+  p (cyan msg)
 
-render p (Failure e) =
-  p (lightRed e)
+render p (Failure msg) =
+  p (lightRed msg)
 
 render p Help = do
     p "help                      : show this help"
@@ -62,6 +62,9 @@ render p Help = do
     p "    disconnect            : disconnect associated client (if any)"
     p "    subscriptions         : show session subscriptions"
     p "    terminate             : terminate session (and disconnect client)"
+    p "transports                : show status of transports"
+    p "  start                   : start transports"
+    p "  stop                    : stop transports"
 
 render p info@BrokerInfo {} = do
   format "Version            " $ brokerVersion info

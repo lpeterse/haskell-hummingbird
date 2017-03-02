@@ -14,6 +14,9 @@ data Request
    | SessionsSelectDisconnect Int
    | SessionsSelectTerminate Int
    | SessionsSelectSubscriptions Int
+   | TransportsStop
+   | TransportsStart
+   | TransportsStatus
    deriving (Eq, Ord, Show, Generic)
 
 data Broker
@@ -30,9 +33,10 @@ parse s = case P.parse requestParser "" s of
 
 requestParser :: Parser Request
 requestParser = spaces >> choice
-  [ string "help"     >> spaces >> eof >> pure Help
-  , string "broker"   >> Broker <$> brokerRequest
-  , string "sessions" >> sessions
+  [ string "help"       >> spaces >> eof >> pure Help
+  , string "broker"     >> Broker <$> brokerRequest
+  , string "sessions"   >> sessions
+  , string "transports" >> transports
   ]
   where
     brokerRequest = spaces >> choice
@@ -48,4 +52,10 @@ requestParser = spaces >> choice
       , string "disconnect" >> spaces >> eof >> pure (SessionsSelectDisconnect i)
       , string "terminate"  >> spaces >> eof >> pure (SessionsSelectTerminate i)
       , string "subscriptions" >> spaces >> eof >> pure (SessionsSelectSubscriptions i)
+      ]
+    transports :: Parser Request
+    transports = spaces >> choice
+      [ eof >> pure TransportsStatus
+      , try $ string "start"  >> spaces >> eof >> pure TransportsStart
+      , try $ string "stop"   >> spaces >> eof >> pure TransportsStop
       ]
