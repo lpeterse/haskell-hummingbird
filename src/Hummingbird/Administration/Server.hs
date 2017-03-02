@@ -1,10 +1,12 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase       #-}
 module Hummingbird.Administration.Server ( runServerInterface ) where
 
 import           Control.Concurrent.Async
 import           Control.Exception                   (SomeException, bracket,
                                                       catch, try)
 import           Control.Monad                       (forever, void, when)
+import           Data.Aeson                          (FromJSON)
 import qualified Data.Binary                         as B
 import qualified Data.Binary.Get                     as B
 import qualified Data.Binary.Put                     as B
@@ -25,7 +27,8 @@ import qualified System.Socket.Family.Unix           as S
 import qualified System.Socket.Protocol.Default      as S
 import qualified System.Socket.Type.Stream           as S
 
-import           Network.MQTT.Authentication         (Authenticator)
+import           Network.MQTT.Authentication         (Authenticator,
+                                                      AuthenticatorConfig)
 import qualified Network.MQTT.Broker                 as Broker
 import qualified Network.MQTT.RoutingTree            as R
 import qualified Network.MQTT.Session                as Session
@@ -35,7 +38,7 @@ import qualified Hummingbird.Administration.Response as Response
 import           Hummingbird.Broker
 import qualified Hummingbird.Configuration           as C
 
-runServerInterface :: Authenticator auth => Proxy (C.Config auth) -> HummingbirdBroker auth -> IO a
+runServerInterface :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Proxy (C.Config auth) -> HummingbirdBroker auth -> IO a
 runServerInterface authProxy hum = do
     config <- getConfig hum
     let path = C.adminSocketPath $ C.admin (config `asProxyTypeOf` authProxy)
@@ -111,11 +114,11 @@ runServerInterface authProxy hum = do
     sendMessage sock msg =
       void $ S.sendAllBuilder sock 4096 (B.execPut $ B.put msg) mempty
 
-process :: Authenticator auth => Request.Request -> HummingbirdBroker auth -> IO Response.Response
+process :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Request.Request -> HummingbirdBroker auth -> IO Response.Response
 process Request.Help _ =
   pure Response.Help
 
-process (Request.Broker _) broker =
+process Request.Broker broker =
   Response.BrokerInfo
   <$> pure "0.1.0-SNAPSHOT"
   <*> Broker.getUptime (humBroker broker)
@@ -192,3 +195,11 @@ process Request.TransportsStop broker =
   try (stopTransports broker) >>= \case
     Right () -> pure (Response.Success "Done.")
     Left e -> pure (Response.Failure $ show (e :: SomeException))
+
+process Request.Config broker =
+  getConfig broker >>= \config-> pure (Response.Success $ show config)
+
+process Request.ConfigReload broker =
+  reloadConfig broker >>= \case
+    Left e -> pure (Response.Failure e)
+    Right config -> pure (Response.Success $ show config)

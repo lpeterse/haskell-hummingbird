@@ -29,7 +29,7 @@ runCommandLineInterface :: C.Config auth -> IO ()
 runCommandLineInterface config = H.runInputT H.defaultSettings $ do
   H.outputStrLn banner
   H.outputStrLn ""
-  lift (execRequest $ Request.Broker Request.BrokerInfo) >>= Response.render H.outputStrLn
+  lift (execRequest Request.Broker) >>= Response.render H.outputStrLn
   H.outputStrLn ""
   forever $
     (Request.parse . fromMaybe "" <$> H.getInputLine prompt) >>= \case

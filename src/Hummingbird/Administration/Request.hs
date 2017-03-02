@@ -8,7 +8,9 @@ import           Text.Parsec.String (Parser)
 
 data Request
    = Help
-   | Broker Broker
+   | Broker
+   | Config
+   | ConfigReload
    | Sessions
    | SessionsSelect Int
    | SessionsSelectDisconnect Int
@@ -19,12 +21,7 @@ data Request
    | TransportsStatus
    deriving (Eq, Ord, Show, Generic)
 
-data Broker
-   = BrokerInfo
-   deriving (Eq, Ord, Show, Generic)
-
 instance B.Binary Request
-instance B.Binary Broker
 
 parse :: String -> Either String Request
 parse s = case P.parse requestParser "" s of
@@ -34,14 +31,21 @@ parse s = case P.parse requestParser "" s of
 requestParser :: Parser Request
 requestParser = spaces >> choice
   [ string "help"       >> spaces >> eof >> pure Help
-  , string "broker"     >> Broker <$> brokerRequest
+  , string "broker"     >> broker
+  , string "config"     >> config
   , string "sessions"   >> sessions
   , string "transports" >> transports
   ]
   where
-    brokerRequest = spaces >> choice
-      [ string "info" >> eof >> pure BrokerInfo
+    broker :: Parser Request
+    broker = spaces >> choice
+      [ eof >> pure Broker
       ]
+    config :: Parser Request
+    config = spaces >> choice
+      [ eof >> pure Config
+      , string "reload" >> spaces >> eof >> pure ConfigReload ]
+    sessions :: Parser Request
     sessions = spaces >> choice
       [ eof >> pure Sessions
       , (read <$> many1 digit :: Parser Int) >>= sessionsSelect

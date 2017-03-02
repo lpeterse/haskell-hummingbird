@@ -23,9 +23,10 @@ import           Hummingbird.Transport
 
 data HummingbirdBroker auth
    = HummingbirdBroker
-   { humBroker    :: Broker.Broker auth
-   , humConfig    :: MVar (Config auth)
-   , humTransport :: MVar (Async ())
+   { humSettingsPath :: FilePath
+   , humBroker       :: Broker.Broker auth
+   , humConfig       :: MVar (Config auth)
+   , humTransport    :: MVar (Async ())
    }
 
 data Status
@@ -59,13 +60,20 @@ withBrokerFromSettingsPath settingsPath f = do
   mtransports <- newMVar trans
 
   f HummingbirdBroker {
-     humBroker    = broker
-   , humConfig    = mconfig
-   , humTransport = mtransports
+     humSettingsPath = settingsPath
+   , humBroker       = broker
+   , humConfig       = mconfig
+   , humTransport    = mtransports
    }
 
 getConfig :: HummingbirdBroker auth -> IO (Config auth)
 getConfig hum = readMVar (humConfig hum)
+
+reloadConfig :: (FromJSON (AuthenticatorConfig auth)) => HummingbirdBroker auth -> IO (Either String (Config auth))
+reloadConfig hum = modifyMVar (humConfig hum) $ \config->
+  loadConfigFromFile (humSettingsPath hum) >>= \case
+    Left  e -> pure (config, Left e)
+    Right config' -> pure (config', Right config')
 
 getTransportsStatus :: HummingbirdBroker auth -> IO Status
 getTransportsStatus hum =

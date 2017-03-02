@@ -33,6 +33,9 @@ data Config auth
    , logging    :: LogConfig
    }
 
+instance Show (Config auth) where
+  show _ = "TODO: Implement Show instance."
+
 newtype AdminConfig
    = AdminConfig
    { adminSocketPath ::   FilePath
