@@ -201,5 +201,5 @@ process Request.Config broker =
 
 process Request.ConfigReload broker =
   reloadConfig broker >>= \case
+    Right _ -> pure (Response.Success "Done.")
     Left e -> pure (Response.Failure e)
-    Right config -> pure (Response.Success $ show config)
