@@ -4,14 +4,17 @@ module Hummingbird.Administration.Response where
 import           Control.Monad
 import qualified Data.Binary                       as B
 import           Data.Int
+import           Data.UUID (UUID)
 import qualified Data.Text                         as T
 import           GHC.Generics                      (Generic)
+import           Network.MQTT.Authentication       (Quota(..), Principal (..))
 import           Network.MQTT.Session              (Connection,
                                                     connectionCleanSession,
                                                     connectionCreatedAt,
                                                     connectionRemoteAddress,
                                                     connectionSecure,
                                                     connectionWebSocket)
+import qualified Network.MQTT.SessionStatistics as SS
 
 import           Hummingbird.Administration.Escape
 
@@ -26,24 +29,33 @@ data Response
    , brokerSubscriptionCount :: Int
    }
    | Session SessionInfo
-   | SessionList [SessionInfo]
+   | SessionList [SessionListElement]
    | SessionSubscriptions String
    deriving (Eq, Ord, Show, Generic)
 
+data SessionListElement
+   = SessionListElement
+   { lsessionIdentifier          :: Int
+   , lsessionClientIdentifier    :: T.Text
+   , lsessionPrincipalIdentifier :: UUID
+   , lsessionConnection          :: Maybe Connection
+   , lsessionCreatedAt           :: Int64
+   } deriving (Eq, Ord, Show, Generic)
+
 data SessionInfo
    = SessionInfo
-   { sessionIdentifier        :: Int
-   , sessionClientIdentifier  :: T.Text
-   , sessionConnection        :: Maybe Connection
-   , sessionCreatedAt         :: Int64
-   , sessionSubscriptionCount :: Int
-   , sessionQueueQos0         :: (Int, Int)
-   , sessionQueueQos1         :: (Int, Int)
-   , sessionQueueQos2         :: (Int, Int)
+   { sessionIdentifier          :: Int
+   , sessionClientIdentifier    :: T.Text
+   , sessionPrincipalIdentifier :: UUID
+   , sessionCreatedAt           :: Int64
+   , sessionConnection          :: Maybe Connection
+   , sessionStatistics          :: SS.StatisticsSnapshot
+   , sessionQuota               :: Quota
    }
    deriving (Eq, Ord, Show, Generic)
 
 instance B.Binary Response
+instance B.Binary SessionListElement
 instance B.Binary SessionInfo
 
 render :: Monad m => (String -> m ()) -> Response -> m ()
@@ -90,20 +102,24 @@ render p (Session s) = do
       case connectionRemoteAddress conn of
         Nothing   -> pure ()
         Just addr -> format "  Remote Address   " $ show addr
-  format "Subscriptions      " $ show (sessionSubscriptionCount s)
-  p $ cyan   "Queues"
-  format "  QoS 0            " $ show (fst $ sessionQueueQos0 s) ++ " / " ++ show (snd $ sessionQueueQos0 s)
-  format "  QoS 1            " $ show (fst $ sessionQueueQos1 s) ++ " / " ++ show (snd $ sessionQueueQos1 s)
-  format "  QoS 2            " $ show (fst $ sessionQueueQos2 s) ++ " / " ++ show (snd $ sessionQueueQos2 s)
+  p $ cyan "Quota"
+  format "  Max idle session TTL         " $ show (quotaSessionTTL $ sessionQuota s)
+  format "  Max inflight messages        " $ show (quotaMaxInflightMessages $ sessionQuota s)
+  format "  Max queue size QoS 0         " $ show (quotaMaxQueueSizeQos0 $ sessionQuota s)
+  format "  Max queue size QoS 1         " $ show (quotaMaxQueueSizeQos1 $ sessionQuota s)
+  format "  Max queue size QoS 2         " $ show (quotaMaxQueueSizeQos2 $ sessionQuota s)
+  p $ cyan "Statistics"
+  format "  Messages published           " $ show (SS.messagesPublished $ sessionStatistics s)
+  format "  Messages dropped             " $ show (SS.messagesDropped $ sessionStatistics s)
   where
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m\STX"
 
 render p (SessionList ss) =
   forM_ ss $ \session->
-    p $ statusDot (sessionConnection session) ++
-    leftPad 8 ' ' (show $ sessionIdentifier session) ++
-    leftPad 30 ' ' (show $ sessionClientIdentifier session)
+    p $ statusDot (lsessionConnection session) ++
+    leftPad 8 ' ' (show $ lsessionIdentifier session) ++
+    leftPad 30 ' ' (show $ lsessionClientIdentifier session)
   where
     statusDot Nothing     = lightRed dot
     statusDot (Just conn) | connectionCleanSession conn = lightBlue dot

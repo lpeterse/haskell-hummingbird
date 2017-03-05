@@ -28,10 +28,12 @@ import qualified System.Socket.Protocol.Default      as S
 import qualified System.Socket.Type.Stream           as S
 
 import           Network.MQTT.Authentication         (Authenticator,
-                                                      AuthenticatorConfig)
+                                                      AuthenticatorConfig,
+                                                      Principal (..))
 import qualified Network.MQTT.Broker                 as Broker
 import qualified Network.MQTT.RoutingTree            as R
 import qualified Network.MQTT.Session                as Session
+import qualified Network.MQTT.SessionStatistics      as SS
 
 import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
@@ -127,20 +129,17 @@ process Request.Broker broker =
 
 process Request.Sessions broker = do
   sessions <- Broker.getSessions (humBroker broker)
-  Response.SessionList <$> mapM sessionInfo (IM.elems sessions)
+  Response.SessionList <$> mapM sessionListElement (IM.elems sessions)
   where
-    sessionInfo :: Session.Session auth -> IO Response.SessionInfo
-    sessionInfo session = do
+    sessionListElement :: Session.Session auth -> IO Response.SessionListElement
+    sessionListElement session = do
       connection <- Session.getConnection session
-      pure Response.SessionInfo {
-          Response.sessionIdentifier = Session.sessionIdentifier session
-        , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
-        , Response.sessionCreatedAt = 0
-        , Response.sessionConnection = connection
-        , Response.sessionSubscriptionCount = 0
-        , Response.sessionQueueQos0 = (123, 256)
-        , Response.sessionQueueQos1 = (0, 234)
-        , Response.sessionQueueQos2 = (34, 2347234)
+      pure Response.SessionListElement {
+          Response.lsessionIdentifier = Session.sessionIdentifier session
+        , Response.lsessionClientIdentifier = Session.sessionClientIdentifier session
+        , Response.lsessionPrincipalIdentifier = Session.sessionPrincipalIdentifier session
+        , Response.lsessionCreatedAt = Session.sessionCreatedAt session
+        , Response.lsessionConnection = connection
         }
 
 process (Request.SessionsSelect sid) broker = do
@@ -152,16 +151,17 @@ process (Request.SessionsSelect sid) broker = do
     sessionInfo :: Session.Session auth -> IO Response.SessionInfo
     sessionInfo session = do
       connection <- Session.getConnection session
+      stats <- SS.snapshot $ Session.sessionStatistics session
       subscriptions <- Session.getSubscriptions session
+      quota <- principalQuota <$> Session.getPrincipal session
       pure Response.SessionInfo
         { Response.sessionIdentifier = Session.sessionIdentifier session
         , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
+        , Response.sessionPrincipalIdentifier = Session.sessionPrincipalIdentifier session
         , Response.sessionConnection = connection
         , Response.sessionCreatedAt = Session.sessionCreatedAt session
-        , Response.sessionSubscriptionCount = R.size subscriptions
-        , Response.sessionQueueQos0 = (123,256)
-        , Response.sessionQueueQos1 = (0, 234)
-        , Response.sessionQueueQos2 = (34, 2347234)
+        , Response.sessionStatistics = stats
+        , Response.sessionQuota = quota
         }
 
 process (Request.SessionsSelectDisconnect sid) broker =
