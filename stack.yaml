@@ -1,13 +1,14 @@
 resolver: lts-7.19
 packages:
   - '.'
-#  - '../haskell-mqtt'
-  - location:
-      git: https://github.com/lpeterse/haskell-mqtt.git
-      commit: e74167ae51ac6d649cb31dced0ee7fa9bea28f19
+  - '../haskell-mqtt'
+#  - location:
+#      git: https://github.com/lpeterse/haskell-mqtt.git
+#      commit: e74167ae51ac6d649cb31dced0ee7fa9bea28f19
 extra-deps:
   - mqtt-0.1.0.0
   - socket-0.8.0.1
   - socket-unix-0.2.0.0
+  - aeson-1.1.0.0
 flags: {}
 extra-package-dbs: []

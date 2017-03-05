@@ -7,12 +7,18 @@ import           Control.Exception
 import qualified Crypto.BCrypt               as BCrypt
 import           Data.Aeson                  (FromJSON (..), (.:?))
 import           Data.Aeson.Types
+import qualified Data.ByteString             as BS
 import           Data.Functor.Identity
-import Data.Word
+import           Data.List                   as L
 import qualified Data.Map                    as M
+import           Data.Maybe
 import qualified Data.Text                   as T
 import qualified Data.Text.Encoding          as T
 import           Data.Typeable
+import           Data.UUID                   (UUID)
+import qualified Data.UUID                   as UUID
+import           Data.Word
+
 import           Network.MQTT.Authentication
 import           Network.MQTT.Message
 import qualified Network.MQTT.RoutingTree    as R
@@ -21,53 +27,66 @@ import           Hummingbird.Configuration   hiding (auth)
 
 data SimpleAuthenticator
    = SimpleAuthenticator
-     { principals :: [ Principal SimpleAuthenticator ]
-     }
+   { authPrincipals   :: M.Map UUID SimplePrincipalConfig
+   , authDefaultQuota :: Quota
+   } deriving (Eq, Show)
 
 data SimplePrincipalConfig
    = SimplePrincipalConfig
-   { cfgUsername    :: Maybe T.Text
-   , cfgPassword    :: Maybe T.Text
-   , cfgQuota       :: Maybe SimpleQuota
-   , cfgPermissions :: Maybe (R.RoutingTree (Identity [Privilege]))
-   }
+   { cfgUsername     :: Maybe T.Text
+   , cfgPasswordHash :: Maybe BS.ByteString
+   , cfgQuota        :: Maybe SimpleQuotaConfig
+   , cfgPermissions  :: Maybe (R.RoutingTree (Identity [Privilege]))
+   } deriving (Eq, Show)
 
 data SimpleQuotaConfig
    = SimpleQuotaConfig
-   { cfgSessionTTL :: Maybe Word64
-   } deriving (Eq, Ord, Show)
-
-data SimpleQuota
-   = SimpleQuota
-   { sessionTTL    :: Word64
+   { cfgQuotaSessionTTL   :: Maybe Word64
    } deriving (Eq, Ord, Show)
 
 instance Authenticator SimpleAuthenticator where
-  data Principal SimpleAuthenticator = SimplePrincipal {
-          username             :: T.Text
-        , password             :: T.Text
-        , quota                :: SimpleQuota
-        , publishPermissions   :: R.RoutingTree ()
-        , subscribePermissions :: R.RoutingTree ()
-        }
   data AuthenticatorConfig SimpleAuthenticator
      = SimpleAuthenticatorConfig
-       { cfgPrincipals   :: [ SimplePrincipalConfig ]
-       , cfgDefaultQuota :: SimpleQuota
+       { cfgPrincipals   :: M.Map UUID SimplePrincipalConfig
+       , cfgDefaultQuota :: SimpleQuotaConfig
        }
   data AuthenticationException SimpleAuthenticator
      = SimpleAuthenticationException deriving (Eq, Ord, Show, Typeable)
-  newAuthenticator config = do
-    let ps = fmap f (cfgPrincipals config)
 
-    pure $ SimpleAuthenticator $ fmap f (cfgPrincipals config)
+  newAuthenticator config = SimpleAuthenticator
+    <$> pure (cfgPrincipals config)
+    <*> pure (f $ cfgDefaultQuota config)
     where
-      f = n 
+      f qc = Quota {
+        quotaSessionTTL = fromMaybe 0 $ cfgQuotaSessionTTL qc
+      }
 
+  authenticate auth req =
+    pure $ case requestCredentials req of
+      Just (reqUser, Just (Password reqPass)) ->
+        case mapMaybe (byUsernameAndPassword reqUser reqPass) $ M.assocs (authPrincipals auth) of
+          [(uuid, _)] -> Just uuid
+          _           -> Nothing
+      _ -> Nothing
+    where
+      byUsernameAndPassword reqUser reqPass p@(uuid, principal) = do
+        -- Maybe monad - yields Nothing on failure!
+        user <- cfgUsername principal
+        pwhash <- cfgPasswordHash principal
+        -- The user is authenticated if username _and_ supplied password match.
+        if user == reqUser && BCrypt.validatePassword pwhash reqPass
+          then Just p
+          else Nothing
 
-     pure (SimpleAuthenticator $ authPrincipals config)
-    {-
-    pure (SimpleAuthenticator (authCredentials cfg) pubPermissions subPermissions)
+  getPrincipal auth pid =
+    case M.lookup pid (authPrincipals auth) of
+      Nothing -> pure Nothing
+      Just pc -> pure $ Just Principal {
+          principalUsername             = cfgUsername pc
+        , principalQuota                = mergeQuota (cfgQuota pc) (authDefaultQuota auth)
+        , principalPublishPermissions   = R.mapMaybe f $ fromMaybe R.empty $ cfgPermissions pc
+        , principalSubscribePermissions = R.mapMaybe g $ fromMaybe R.empty $ cfgPermissions pc
+        }
     where
       f (Identity xs)
         | Publish `elem` xs   = Just ()
@@ -75,46 +94,21 @@ instance Authenticator SimpleAuthenticator where
       g (Identity xs)
         | Subscribe `elem` xs = Just ()
         | otherwise           = Nothing
-      pubPermissions = fmap (R.mapMaybe f) (authPermissions cfg)
-      subPermissions = fmap (R.mapMaybe g) (authPermissions cfg) -}
-  authenticate auth req = (SimplePrincipal <$>) <$> lookupBasicIdentity
-    where
-      lookupBasicIdentity =
-        pure $ case requestCredentials req of
-          Just (username, Just (Password password)) ->
-            case M.lookup username (credentials auth) of
-              Nothing -> Nothing
-              Just hashedPassword
-                | BCrypt.validatePassword (T.encodeUtf8 hashedPassword) password -> Just username
-                | otherwise                                                      -> Nothing
-          _ -> Nothing
-
-  hasPublishPermission auth principal topic = undefined
-{-
-    pure $ case M.lookup principal (publishPermissions auth) of
-      Nothing   -> False
-      Just tree -> R.matchTopic topic tree
--}
-  hasSubscribePermission auth principal filtr = undefined
-{-    pure $ case M.lookup principal (subscribePermissions auth) of
-      Nothing   -> False
-      Just tree -> R.matchFilter filtr tree
--}
+      -- Prefers a user quota property over the default quota property.
+      mergeQuota Nothing defaultQuota = defaultQuota
+      mergeQuota (Just principalQuota) defaultQuota = Quota {
+          quotaSessionTTL = fromMaybe (quotaSessionTTL defaultQuota) (cfgQuotaSessionTTL principalQuota)
+       }
 
 instance Exception (AuthenticationException SimpleAuthenticator)
 
 instance FromJSON SimplePrincipalConfig where
   parseJSON (Object v) = SimplePrincipalConfig
     <$> v .:? "username"
-    <*> v .:? "password"
+    <*> ((T.encodeUtf8 <$>) <$> v .:? "password")
     <*> v .:? "quota"
     <*> v .:? "permissions"
-  parseJSON invalid = typeMismatch "SimplePrincipal" invalid
-
-instance FromJSON SimpleQuota where
-  parseJSON (Object v) = SimpleQuota
-    <$> v .: "sessionTTL"
-  parseJSON invalid = typeMismatch "SimpleQuota" invalid
+  parseJSON invalid = typeMismatch "SimplePrincipalConfig" invalid
 
 instance FromJSON SimpleQuotaConfig where
   parseJSON (Object v) = SimpleQuotaConfig
@@ -123,6 +117,6 @@ instance FromJSON SimpleQuotaConfig where
 
 instance FromJSON (AuthenticatorConfig SimpleAuthenticator) where
   parseJSON (Object v) = SimpleAuthenticatorConfig
-    <$> v .:? "principcals" .!= mempty
+    <$> v .: "principals"
     <*> v .: "defaultQuota"
   parseJSON invalid = typeMismatch "SimpleAuthenticatorConfig" invalid

@@ -1,11 +1,19 @@
 auth:
+  defaultQuota:
+    sessionTTL: 0
   principals:
-    - username: mqtt-default
+    e4f7f759-a7f0-4ae7-8140-766269e1c503:
+      username: "mqtt-default"
       password: "$2y$14$z1TeFmnk9zirP1Ml55lVyuOWOhaYyqlHlvd6meaze2KDYPH8hrdsS"
-      persistence: 60
+      quota:
+        sessionTTL: 60
       permissions:
-        "#":
-          "!": [ PUB, SUB ]
+        "abc":
+          "/":
+            "def":
+              "?": [ SUB ]
+            "#":
+              "?": [ PUB ]
 
 admin:
   socketPath: "hummingbird.socket"

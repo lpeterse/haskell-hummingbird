@@ -87,10 +87,10 @@ instance FromJSON (R.RoutingTree (Identity [Privilege])) where
 
 instance FromJSON (R.RoutingTreeNode (Identity [Privilege])) where
   parseJSON (Object v) = do
-    subtree  <- v .:? ">" .!= R.empty
-    mpubsub  <- v .:? "!"
+    subtree  <- v .:? "/" .!= R.empty
+    mpubsub  <- v .:? "?"
     pure $ R.node subtree (Identity <$> mpubsub)
-  parseJSON _ = pure $ R.node R.empty Nothing
+  parseJSON invalid = typeMismatch "RoutingTreeNode" invalid
 
 data LogConfig
    = LogConfig

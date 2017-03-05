@@ -41,6 +41,7 @@ library
                         binary,
                         bytestring,
                         clock,
+                        uuid,
                         containers,
                         data-default-class,
                         data-default,
