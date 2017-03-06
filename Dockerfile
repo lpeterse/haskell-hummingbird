@@ -22,4 +22,5 @@ COPY        . .
 
 RUN         ln -s /lib/x86_64-linux-gnu/libtinfo.so.5 /lib/x86_64-linux-gnu/libtinfo.so
 RUN         stack setup
-RUN         stack test && stack install
+RUN         stack install
+RUN         stack test

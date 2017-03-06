@@ -11,11 +11,11 @@ auth:
       password: "$2y$14$z1TeFmnk9zirP1Ml55lVyuOWOhaYyqlHlvd6meaze2KDYPH8hrdsS"
       permissions:
         "abc":
-          "/":
+          /:
             "def":
-              "?": [ SUB ]
+              ?: [ SUB ]
             "#":
-              "?": [ PUB ]
+              ?: [ PUB ]
 
 admin:
   socketPath: "hummingbird.socket"

@@ -35,7 +35,7 @@ library
                         Hummingbird.Transport,
                         Hummingbird.Broker
   build-depends:        base,
-                        aeson,
+                        aeson >= 1.1.0.0,
                         async,
                         bcrypt,
                         binary,
