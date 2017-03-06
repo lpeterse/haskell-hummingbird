@@ -41,7 +41,7 @@ data SimplePrincipalConfig
 
 data SimpleQuotaConfig
    = SimpleQuotaConfig
-   { cfgQuotaSessionTTL           :: Maybe Word64
+   { cfgQuotaIdleSessionTTL       :: Maybe Word64
    , cfgQuotaMaxInflightMessages  :: Maybe Word64
    , cfgQuotaMaxQueueSizeQos0     :: Maybe Word64
    , cfgQuotaMaxQueueSizeQos1     :: Maybe Word64
@@ -62,7 +62,7 @@ instance Authenticator SimpleAuthenticator where
     <*> pure (f $ cfgDefaultQuota config)
     where
       f qc = Quota {
-        quotaSessionTTL = fromMaybe 0 $ cfgQuotaSessionTTL qc
+        quotaSessionTTL = fromMaybe 0 $ cfgQuotaIdleSessionTTL qc
       , quotaMaxInflightMessages = fromMaybe 1 $ cfgQuotaMaxInflightMessages qc
       , quotaMaxQueueSizeQos0 = fromMaybe 0 $ cfgQuotaMaxQueueSizeQos0 qc
       , quotaMaxQueueSizeQos1 = fromMaybe 0 $ cfgQuotaMaxQueueSizeQos1 qc
@@ -105,7 +105,7 @@ instance Authenticator SimpleAuthenticator where
       -- Prefers a user quota property over the default quota property.
       mergeQuota Nothing defaultQuota = defaultQuota
       mergeQuota (Just principalQuota) defaultQuota = Quota {
-          quotaSessionTTL = fromMaybe (quotaSessionTTL defaultQuota) (cfgQuotaSessionTTL principalQuota)
+          quotaSessionTTL = fromMaybe (quotaSessionTTL defaultQuota) (cfgQuotaIdleSessionTTL principalQuota)
         , quotaMaxInflightMessages = fromMaybe (quotaMaxInflightMessages defaultQuota) (cfgQuotaMaxInflightMessages principalQuota)
         , quotaMaxQueueSizeQos0 = fromMaybe (quotaMaxQueueSizeQos0 defaultQuota) (cfgQuotaMaxQueueSizeQos0 principalQuota)
         , quotaMaxQueueSizeQos1 = fromMaybe (quotaMaxQueueSizeQos1 defaultQuota) (cfgQuotaMaxQueueSizeQos1 principalQuota)
@@ -124,7 +124,7 @@ instance FromJSON SimplePrincipalConfig where
 
 instance FromJSON SimpleQuotaConfig where
   parseJSON (Object v) = SimpleQuotaConfig
-    <$> v .:? "sessionTTL"
+    <$> v .:? "idleSessionTTL"
     <*> v .:? "maxInflightMessages"
     <*> v .:? "maxQueueSizeQos0"
     <*> v .:? "maxQueueSizeQos1"
