@@ -43,9 +43,9 @@ data SimpleQuotaConfig
    = SimpleQuotaConfig
    { cfgQuotaIdleSessionTTL       :: Maybe Word64
    , cfgQuotaMaxInflightMessages  :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQos0     :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQos1     :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQos2     :: Maybe Word64
+   , cfgQuotaMaxQueueSizeQoS0     :: Maybe Word64
+   , cfgQuotaMaxQueueSizeQoS1     :: Maybe Word64
+   , cfgQuotaMaxQueueSizeQoS2     :: Maybe Word64
    } deriving (Eq, Ord, Show)
 
 instance Authenticator SimpleAuthenticator where
@@ -64,9 +64,9 @@ instance Authenticator SimpleAuthenticator where
       f qc = Quota {
         quotaSessionTTL = fromMaybe 0 $ cfgQuotaIdleSessionTTL qc
       , quotaMaxInflightMessages = fromMaybe 1 $ cfgQuotaMaxInflightMessages qc
-      , quotaMaxQueueSizeQos0 = fromMaybe 0 $ cfgQuotaMaxQueueSizeQos0 qc
-      , quotaMaxQueueSizeQos1 = fromMaybe 0 $ cfgQuotaMaxQueueSizeQos1 qc
-      , quotaMaxQueueSizeQos2 = fromMaybe 0 $ cfgQuotaMaxQueueSizeQos2 qc
+      , quotaMaxQueueSizeQoS0 = fromMaybe 0 $ cfgQuotaMaxQueueSizeQoS0 qc
+      , quotaMaxQueueSizeQoS1 = fromMaybe 0 $ cfgQuotaMaxQueueSizeQoS1 qc
+      , quotaMaxQueueSizeQoS2 = fromMaybe 0 $ cfgQuotaMaxQueueSizeQoS2 qc
       }
 
   authenticate auth req =
@@ -107,9 +107,9 @@ instance Authenticator SimpleAuthenticator where
       mergeQuota (Just principalQuota) defaultQuota = Quota {
           quotaSessionTTL = fromMaybe (quotaSessionTTL defaultQuota) (cfgQuotaIdleSessionTTL principalQuota)
         , quotaMaxInflightMessages = fromMaybe (quotaMaxInflightMessages defaultQuota) (cfgQuotaMaxInflightMessages principalQuota)
-        , quotaMaxQueueSizeQos0 = fromMaybe (quotaMaxQueueSizeQos0 defaultQuota) (cfgQuotaMaxQueueSizeQos0 principalQuota)
-        , quotaMaxQueueSizeQos1 = fromMaybe (quotaMaxQueueSizeQos1 defaultQuota) (cfgQuotaMaxQueueSizeQos1 principalQuota)
-        , quotaMaxQueueSizeQos2 = fromMaybe (quotaMaxQueueSizeQos2 defaultQuota) (cfgQuotaMaxQueueSizeQos2 principalQuota)
+        , quotaMaxQueueSizeQoS0 = fromMaybe (quotaMaxQueueSizeQoS0 defaultQuota) (cfgQuotaMaxQueueSizeQoS0 principalQuota)
+        , quotaMaxQueueSizeQoS1 = fromMaybe (quotaMaxQueueSizeQoS1 defaultQuota) (cfgQuotaMaxQueueSizeQoS1 principalQuota)
+        , quotaMaxQueueSizeQoS2 = fromMaybe (quotaMaxQueueSizeQoS2 defaultQuota) (cfgQuotaMaxQueueSizeQoS2 principalQuota)
        }
 
 instance Exception (AuthenticationException SimpleAuthenticator)
@@ -126,9 +126,9 @@ instance FromJSON SimpleQuotaConfig where
   parseJSON (Object v) = SimpleQuotaConfig
     <$> v .:? "idleSessionTTL"
     <*> v .:? "maxInflightMessages"
-    <*> v .:? "maxQueueSizeQos0"
-    <*> v .:? "maxQueueSizeQos1"
-    <*> v .:? "maxQueueSizeQos2"
+    <*> v .:? "maxQueueSizeQoS0"
+    <*> v .:? "maxQueueSizeQoS1"
+    <*> v .:? "maxQueueSizeQoS2"
   parseJSON invalid = typeMismatch "SimpleQuotaConfig" invalid
 
 instance FromJSON (AuthenticatorConfig SimpleAuthenticator) where

@@ -106,9 +106,9 @@ render p (Session s) = do
   p $ cyan "Quota"
   format "  Max idle session TTL         " $ show (quotaSessionTTL $ sessionQuota s)
   format "  Max inflight messages        " $ show (quotaMaxInflightMessages $ sessionQuota s)
-  format "  Max queue size QoS 0         " $ show (quotaMaxQueueSizeQos0 $ sessionQuota s)
-  format "  Max queue size QoS 1         " $ show (quotaMaxQueueSizeQos1 $ sessionQuota s)
-  format "  Max queue size QoS 2         " $ show (quotaMaxQueueSizeQos2 $ sessionQuota s)
+  format "  Max queue size QoS 0         " $ show (quotaMaxQueueSizeQoS0 $ sessionQuota s)
+  format "  Max queue size QoS 1         " $ show (quotaMaxQueueSizeQoS1 $ sessionQuota s)
+  format "  Max queue size QoS 2         " $ show (quotaMaxQueueSizeQoS2 $ sessionQuota s)
   p $ cyan "Statistics"
   format "  Messages published           " $ show (SS.messagesPublished $ sessionStatistics s)
   format "  Messages dropped             " $ show (SS.messagesDropped $ sessionStatistics s)
