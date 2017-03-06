@@ -71,13 +71,13 @@ instance Authenticator SimpleAuthenticator where
 
   authenticate auth req =
     pure $ case requestCredentials req of
-      Just (reqUser, Just (Password reqPass)) ->
+      Just (reqUser, Just reqPass) ->
         case mapMaybe (byUsernameAndPassword reqUser reqPass) $ M.assocs (authPrincipals auth) of
           [(uuid, _)] -> Just uuid
           _           -> Nothing
       _ -> Nothing
     where
-      byUsernameAndPassword reqUser reqPass p@(uuid, principal) = do
+      byUsernameAndPassword (Username reqUser) (Password reqPass) p@(uuid, principal) = do
         -- Maybe monad - yields Nothing on failure!
         user <- cfgUsername principal
         pwhash <- cfgPasswordHash principal
@@ -90,7 +90,7 @@ instance Authenticator SimpleAuthenticator where
     case M.lookup pid (authPrincipals auth) of
       Nothing -> pure Nothing
       Just pc -> pure $ Just Principal {
-          principalUsername             = cfgUsername pc
+          principalUsername             = Username <$> cfgUsername pc
         , principalQuota                = mergeQuota (cfgQuota pc) (authDefaultQuota auth)
         , principalPublishPermissions   = R.mapMaybe f $ fromMaybe R.empty $ cfgPermissions pc
         , principalSubscribePermissions = R.mapMaybe g $ fromMaybe R.empty $ cfgPermissions pc

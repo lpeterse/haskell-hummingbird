@@ -8,6 +8,7 @@ import           Data.UUID (UUID)
 import qualified Data.Text                         as T
 import           GHC.Generics                      (Generic)
 import           Network.MQTT.Authentication       (Quota(..), Principal (..))
+import           Network.MQTT.Message              (ClientIdentifier)
 import           Network.MQTT.Session              (Connection,
                                                     connectionCleanSession,
                                                     connectionCreatedAt,
@@ -36,7 +37,7 @@ data Response
 data SessionListElement
    = SessionListElement
    { lsessionIdentifier          :: Int
-   , lsessionClientIdentifier    :: T.Text
+   , lsessionClientIdentifier    :: ClientIdentifier
    , lsessionPrincipalIdentifier :: UUID
    , lsessionConnection          :: Maybe Connection
    , lsessionCreatedAt           :: Int64
@@ -45,7 +46,7 @@ data SessionListElement
 data SessionInfo
    = SessionInfo
    { sessionIdentifier          :: Int
-   , sessionClientIdentifier    :: T.Text
+   , sessionClientIdentifier    :: ClientIdentifier
    , sessionPrincipalIdentifier :: UUID
    , sessionCreatedAt           :: Int64
    , sessionConnection          :: Maybe Connection
