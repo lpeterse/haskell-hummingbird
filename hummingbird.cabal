@@ -26,6 +26,7 @@ library
   ghc-options:          -Wall
   exposed-modules:      Hummingbird
                       , Hummingbird.Administration.CLI
+                      , Hummingbird.Administration.CLI2
                       , Hummingbird.Administration.Escape
                       , Hummingbird.Administration.Request
                       , Hummingbird.Administration.Response

@@ -1,10 +1,9 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Hummingbird.Administration.CLI ( runCommandLineInterface ) where
+module Hummingbird.Administration.CLI2 ( runCommandLineInterface ) where
 
 import           Control.Exception                   (bracket)
 import           Control.Monad                       (forever, void)
-import           Control.Monad.Trans.Class           (lift)
 import qualified Data.Binary                         as B
 import qualified Data.Binary.Get                     as B
 import qualified Data.Binary.Put                     as B
@@ -12,7 +11,7 @@ import qualified Data.ByteString                     as BS
 import           Data.Maybe
 import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
-import qualified System.Console.Haskeline            as H
+import           System.Environment
 import           System.Exit
 import           System.IO                           (hPutStrLn, stderr)
 import qualified System.Socket                       as S
@@ -20,23 +19,18 @@ import qualified System.Socket.Family.Unix           as S
 import qualified System.Socket.Protocol.Default      as S
 import qualified System.Socket.Type.Stream           as S
 
-import           Hummingbird.Administration.Escape
 import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
 import qualified Hummingbird.Configuration           as C
 
 runCommandLineInterface :: C.Config auth -> IO ()
-runCommandLineInterface config = H.runInputT H.defaultSettings $ do
-  H.outputStrLn banner
-  H.outputStrLn ""
-  lift (execRequest Request.Broker) >>= Response.render H.outputStrLn
-  H.outputStrLn ""
-  forever $
-    (Request.parse . fromMaybe "" <$> H.getInputLine prompt) >>= \case
-      Right cmd  -> do
-        response <- lift $ execRequest cmd
-        Response.render H.outputStrLn response
-      Left e -> H.outputStrLn $ lightRed e
+runCommandLineInterface config = do
+  args <- getArgs
+  case Request.parse (unwords args) of
+    Right cmd -> do
+      response <- execRequest cmd
+      Response.render putStrLn response
+    Left e  -> print e
   where
     execRequest :: Request.Request -> IO Response.Response
     execRequest cmd = case S.socketAddressUnixPath (T.encodeUtf8 $ T.pack $ C.adminSocketPath $ C.admin config) of
