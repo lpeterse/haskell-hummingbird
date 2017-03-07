@@ -19,7 +19,6 @@ import qualified System.Socket.Family.Unix           as S
 import qualified System.Socket.Protocol.Default      as S
 import qualified System.Socket.Type.Stream           as S
 
-import           Hummingbird.Administration.Escape
 import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
 import qualified Hummingbird.Configuration           as C

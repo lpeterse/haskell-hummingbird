@@ -4,18 +4,18 @@ module Hummingbird.Administration.Response where
 import           Control.Monad
 import qualified Data.Binary                       as B
 import           Data.Int
-import           Data.UUID (UUID)
 import qualified Data.Text                         as T
+import           Data.UUID                         (UUID)
 import           GHC.Generics                      (Generic)
-import           Network.MQTT.Authentication       (Quota(..), Principal (..))
-import           Network.MQTT.Message              (ClientIdentifier)
+import           Network.MQTT.Authentication       (Principal (..), Quota (..))
+import           Network.MQTT.Message              (ClientIdentifier (..))
 import           Network.MQTT.Session              (Connection,
                                                     connectionCleanSession,
                                                     connectionCreatedAt,
                                                     connectionRemoteAddress,
                                                     connectionSecure,
                                                     connectionWebSocket)
-import qualified Network.MQTT.SessionStatistics as SS
+import qualified Network.MQTT.SessionStatistics    as SS
 
 import           Hummingbird.Administration.Escape
 
@@ -120,11 +120,12 @@ render p (SessionList ss) =
   forM_ ss $ \session->
     p $ statusDot (lsessionConnection session) ++
     leftPad 8 ' ' (show $ lsessionIdentifier session) ++
-    leftPad 30 ' ' (show $ lsessionClientIdentifier session)
+    leftPad 30 ' ' (showSession $ lsessionClientIdentifier session)
   where
     statusDot Nothing     = lightRed dot
     statusDot (Just conn) | connectionCleanSession conn = lightBlue dot
                           | otherwise                   = lightGreen dot
+    showSession (ClientIdentifier s) = show s
 
 render p (SessionSubscriptions s) =
   p s
