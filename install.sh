@@ -38,6 +38,7 @@ sudo systemctl daemon-reload
 # Copy binary
 
 cp .stack-work/dist/*/Cabal-*/build/hummingbird/hummingbird $DIR_BIN/$SERVICE
+cp .stack-work/dist/*/Cabal-*/build/hummingbird-cli/hummingbird-cli $DIR_BIN/hummingbird-cli
 chown root:root $DIR_BIN/$SERVICE
 chmod 755 $DIR_BIN/$SERVICE
 
