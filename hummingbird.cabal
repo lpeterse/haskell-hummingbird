@@ -31,6 +31,7 @@ library
                       , Hummingbird.Administration.Request
                       , Hummingbird.Administration.Response
                       , Hummingbird.Administration.Server
+                      , Hummingbird.Administration.Sys
                       , Hummingbird.Broker
                       , Hummingbird.Configuration
                       , Hummingbird.SimpleAuthenticator
