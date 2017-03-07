@@ -8,7 +8,6 @@ import qualified Data.Binary                         as B
 import qualified Data.Binary.Get                     as B
 import qualified Data.Binary.Put                     as B
 import qualified Data.ByteString                     as BS
-import           Data.Maybe
 import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
 import           System.Environment

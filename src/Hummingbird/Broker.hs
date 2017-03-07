@@ -1,22 +1,24 @@
-{-# LANGUAGE LambdaCase, FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase       #-}
 module Hummingbird.Broker where
 
 import           Control.Concurrent
 import           Control.Concurrent.Async
-import           Control.Monad
 import           Control.Exception
+import           Control.Monad
 import           Data.Aeson
 import           System.Exit
 import           System.IO
-import qualified System.Log.Formatter           as LOG
-import qualified System.Log.Handler             as LOG hiding (setLevel)
-import qualified System.Log.Handler.Simple      as LOG
-import qualified System.Log.Handler.Syslog      as LOG
-import qualified System.Log.Logger              as LOG
+import qualified System.Log.Formatter               as LOG
+import qualified System.Log.Handler                 as LOG hiding (setLevel)
+import qualified System.Log.Handler.Simple          as LOG
+import qualified System.Log.Handler.Syslog          as LOG
+import qualified System.Log.Logger                  as LOG
 
-import qualified Network.MQTT.Broker            as Broker
-import qualified Network.MQTT.Authentication    as Authentication
-import           Network.MQTT.Authentication    (Authenticator, AuthenticatorConfig)
+import qualified Network.MQTT.Broker                as Broker
+import           Network.MQTT.Broker.Authentication (Authenticator,
+                                                     AuthenticatorConfig)
+import qualified Network.MQTT.Broker.Authentication as Authentication
 
 import           Hummingbird.Configuration
 import           Hummingbird.Transport

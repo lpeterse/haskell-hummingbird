@@ -5,21 +5,21 @@
 {-# LANGUAGE TypeFamilies      #-}
 module Hummingbird ( run ) where
 
-import qualified Crypto.BCrypt                     as BCrypt
+import qualified Crypto.BCrypt                      as BCrypt
 import           Data.Aeson
-import qualified Data.ByteString.Char8             as BS
+import qualified Data.ByteString.Char8              as BS
 import           Data.Proxy
 import           Options
 import           System.Exit
 import           System.IO
 
-import           Network.MQTT.Authentication       (Authenticator,
-                                                    AuthenticatorConfig)
+import           Network.MQTT.Broker.Authentication (Authenticator,
+                                                     AuthenticatorConfig)
 
-import qualified Hummingbird.Administration.CLI    as Admin
-import qualified Hummingbird.Administration.Server as Admin
-import qualified Hummingbird.Broker                as Broker
-import qualified Hummingbird.Configuration         as Config
+import qualified Hummingbird.Administration.CLI     as Admin
+import qualified Hummingbird.Administration.Server  as Admin
+import qualified Hummingbird.Broker                 as Broker
+import qualified Hummingbird.Configuration          as Config
 
 data MainOptions = MainOptions
   { mainConfigFilePath :: FilePath }

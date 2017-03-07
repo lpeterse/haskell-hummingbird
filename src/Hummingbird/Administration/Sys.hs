@@ -8,9 +8,10 @@ import           Control.Concurrent
 import           Control.Concurrent.Async
 import           Control.Monad            (forM_, forever)
 import           Data.String
+import qualified System.Clock             as Clock
+
 import qualified Network.MQTT.Broker      as Broker
 import           Network.MQTT.Message     (Message (..), QoS (..), Retain (..))
-import qualified System.Clock             as Clock
 
 sysInfoPublisher :: Broker.Broker auth -> (Async () -> IO a) -> IO a
 sysInfoPublisher auth = withAsync $ forM_ [0..] $ \uptime-> do

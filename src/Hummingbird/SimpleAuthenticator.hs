@@ -19,9 +19,9 @@ import           Data.UUID                   (UUID)
 import qualified Data.UUID                   as UUID
 import           Data.Word
 
-import           Network.MQTT.Authentication
+import           Network.MQTT.Broker.Authentication
 import           Network.MQTT.Message
-import qualified Network.MQTT.RoutingTree    as R
+import qualified Network.MQTT.Trie           as R
 
 import           Hummingbird.Configuration   hiding (auth)
 
@@ -36,16 +36,16 @@ data SimplePrincipalConfig
    { cfgUsername     :: Maybe T.Text
    , cfgPasswordHash :: Maybe BS.ByteString
    , cfgQuota        :: Maybe SimpleQuotaConfig
-   , cfgPermissions  :: Maybe (R.RoutingTree (Identity [Privilege]))
+   , cfgPermissions  :: Maybe (R.Trie (Identity [Privilege]))
    } deriving (Eq, Show)
 
 data SimpleQuotaConfig
    = SimpleQuotaConfig
-   { cfgQuotaIdleSessionTTL       :: Maybe Word64
-   , cfgQuotaMaxInflightMessages  :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQoS0     :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQoS1     :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQoS2     :: Maybe Word64
+   { cfgQuotaIdleSessionTTL      :: Maybe Word64
+   , cfgQuotaMaxInflightMessages :: Maybe Word64
+   , cfgQuotaMaxQueueSizeQoS0    :: Maybe Word64
+   , cfgQuotaMaxQueueSizeQoS1    :: Maybe Word64
+   , cfgQuotaMaxQueueSizeQoS2    :: Maybe Word64
    } deriving (Eq, Ord, Show)
 
 instance Authenticator SimpleAuthenticator where

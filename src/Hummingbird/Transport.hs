@@ -4,21 +4,22 @@ import           Control.Concurrent.Async
 import           Control.Monad
 import           Data.Default
 import           Data.Int
-import qualified Data.Text                         as T
-import qualified Data.Text.Encoding                as T
-import qualified Data.X509.CertificateStore        as X509
-import           Network.MQTT.Authentication
-import qualified Network.MQTT.Broker               as Broker
-import qualified Network.MQTT.Server               as Server
-import qualified Network.Stack.Server              as SS
-import qualified Network.TLS                       as TLS
-import qualified Network.TLS.Extra.Cipher          as TLS
+import qualified Data.Text                          as T
+import qualified Data.Text.Encoding                 as T
+import qualified Data.X509.CertificateStore         as X509
+import qualified Network.Stack.Server               as SS
+import qualified Network.TLS                        as TLS
+import qualified Network.TLS.Extra.Cipher           as TLS
 import           System.Exit
 import           System.IO
-import qualified System.Socket                     as S
-import qualified System.Socket.Family.Inet         as S
-import qualified System.Socket.Protocol.Default    as S
-import qualified System.Socket.Type.Stream         as S
+import qualified System.Socket                      as S
+import qualified System.Socket.Family.Inet          as S
+import qualified System.Socket.Protocol.Default     as S
+import qualified System.Socket.Type.Stream          as S
+
+import qualified Network.MQTT.Broker                as Broker
+import           Network.MQTT.Broker.Authentication
+import qualified Network.MQTT.Server                as Server
 
 import           Hummingbird.Configuration
 

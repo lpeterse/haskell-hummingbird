@@ -8,13 +8,13 @@ import           Data.Proxy
 import           Options
 import           System.Environment
 import           System.Exit
-import           System.IO                       (hPutStrLn, stderr)
+import           System.IO                          (hPutStrLn, stderr)
 
-import           Hummingbird.Administration.CLI2 (runCommandLineInterface)
-import qualified Hummingbird.Configuration       as Config
+import           Network.MQTT.Broker.Authentication (Authenticator,
+                                                     AuthenticatorConfig)
 
-import           Network.MQTT.Authentication     (Authenticator,
-                                                  AuthenticatorConfig)
+import           Hummingbird.Administration.CLI2    (runCommandLineInterface)
+import qualified Hummingbird.Configuration          as Config
 
 data MainOptions = MainOptions
   { mainConfigFilePath :: FilePath }

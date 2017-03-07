@@ -7,15 +7,15 @@ import           Data.Int
 import qualified Data.Text                         as T
 import           Data.UUID                         (UUID)
 import           GHC.Generics                      (Generic)
-import           Network.MQTT.Authentication       (Principal (..), Quota (..))
+import           Network.MQTT.Broker.Authentication       (Principal (..), Quota (..))
 import           Network.MQTT.Message              (ClientIdentifier (..))
-import           Network.MQTT.Session              (Connection,
+import           Network.MQTT.Broker.Session              (Connection,
                                                     connectionCleanSession,
                                                     connectionCreatedAt,
                                                     connectionRemoteAddress,
                                                     connectionSecure,
                                                     connectionWebSocket)
-import qualified Network.MQTT.SessionStatistics    as SS
+import qualified Network.MQTT.Broker.SessionStatistics    as SS
 
 import           Hummingbird.Administration.Escape
 

@@ -14,9 +14,10 @@ import           Data.String
 import qualified Data.Text                   as T
 import           Data.Word
 import qualified Data.Yaml                   as Yaml
-import           Network.MQTT.Authentication
-import qualified Network.MQTT.RoutingTree    as R
 import qualified System.Log.Logger           as Log
+
+import           Network.MQTT.Broker.Authentication
+import qualified Network.MQTT.Trie           as R
 
 loadConfigFromFile :: (FromJSON (AuthenticatorConfig auth)) => FilePath -> IO (Either String (Config auth))
 loadConfigFromFile path = do
@@ -50,9 +51,9 @@ data ServerConfig
 
 data TransportConfig
    = SocketTransport
-     { bindAddress       :: T.Text
-     , bindPort          :: Word16
-     , listenBacklog     :: Int
+     { bindAddress   :: T.Text
+     , bindPort      :: Word16
+     , listenBacklog :: Int
      }
    | WebSocketTransport
      { transport         :: TransportConfig
@@ -76,21 +77,21 @@ instance FromJSON Privilege where
   parseJSON (String "SUB") = pure Subscribe
   parseJSON _              = fail "Expected 'PUB' or 'SUB'."
 
-instance FromJSON (R.RoutingTree (Identity [Privilege])) where
-  parseJSON (Object a) = R.RoutingTree <$> HM.foldlWithKey' f (pure M.empty) a
+instance FromJSON (R.Trie (Identity [Privilege])) where
+  parseJSON (Object a) = R.Trie <$> HM.foldlWithKey' f (pure M.empty) a
     where
       f pm k v = do
         m    <- pm
         node <- parseJSON v
         pure $ M.insert (fromString $ T.unpack k) node m
-  parseJSON invalid = typeMismatch "RoutingTree" invalid
+  parseJSON invalid = typeMismatch "Trie" invalid
 
-instance FromJSON (R.RoutingTreeNode (Identity [Privilege])) where
+instance FromJSON (R.TrieNode (Identity [Privilege])) where
   parseJSON (Object v) = do
     subtree  <- v .:? "/" .!= R.empty
     mpubsub  <- v .:? "?"
     pure $ R.node subtree (Identity <$> mpubsub)
-  parseJSON invalid = typeMismatch "RoutingTreeNode" invalid
+  parseJSON invalid = typeMismatch "TrieNode" invalid
 
 data LogConfig
    = LogConfig
