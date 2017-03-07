@@ -3,7 +3,7 @@
 module Hummingbird.Administration.CLI2 ( runCommandLineInterface ) where
 
 import           Control.Exception                   (bracket)
-import           Control.Monad                       (forever, void)
+import           Control.Monad                       (void)
 import qualified Data.Binary                         as B
 import qualified Data.Binary.Get                     as B
 import qualified Data.Binary.Put                     as B

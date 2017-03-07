@@ -80,6 +80,7 @@ executable hummingbird-cli
   build-depends:
     base,
     mqtt,
+    options,
     hummingbird
   ghc-options:      -rtsopts -Wall -O2 -threaded -fprof-auto
   default-language: Haskell2010
