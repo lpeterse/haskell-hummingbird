@@ -120,12 +120,12 @@ render p (SessionList ss) =
   forM_ ss $ \session->
     p $ statusDot (lsessionConnection session) ++
     leftPad 8 ' ' (show $ lsessionIdentifier session) ++
-    leftPad 30 ' ' (showSession $ lsessionClientIdentifier session)
+    leftPad 30 ' ' (showClientIdentifier $ lsessionClientIdentifier session)
   where
     statusDot Nothing     = lightRed dot
     statusDot (Just conn) | connectionCleanSession conn = lightBlue dot
                           | otherwise                   = lightGreen dot
-    showSession (ClientIdentifier s) = show s
+    showClientIdentifier (ClientIdentifier s) = show s
 
 render p (SessionSubscriptions s) =
   p s
