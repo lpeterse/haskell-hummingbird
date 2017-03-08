@@ -20,6 +20,7 @@ import           Network.MQTT.Broker.Authentication (Authenticator,
                                                      AuthenticatorConfig)
 import qualified Network.MQTT.Broker.Authentication as Authentication
 
+import           Hummingbird.Administration.Sys
 import           Hummingbird.Configuration
 import           Hummingbird.Transport
 
@@ -58,6 +59,7 @@ withBrokerFromSettingsPath settingsPath f = do
   authenticator <- Authentication.newAuthenticator (auth config)
   broker <- Broker.new authenticator
   trans <- async $ runTransports broker (transports config)
+  _ <- forkIO (sysInfoPublisher broker)
   mconfig <- newMVar config
   mtransports <- newMVar trans
 
