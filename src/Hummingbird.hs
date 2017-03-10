@@ -32,7 +32,7 @@ data PwhashOptions = PwhashOptions
 
 instance Options MainOptions where
   defineOptions = MainOptions
-    <$> simpleOption "settings" "/etc/hummingbird/settings.yml" "Path to the .yaml configuration file"
+    <$> simpleOption "settings" "/etc/hummingbird/settings.yml" "Path to the .yml configuration file"
 
 instance Options CliOptions where
   defineOptions = pure CliOptions

@@ -21,7 +21,7 @@ data MainOptions = MainOptions
 
 instance Options MainOptions where
   defineOptions = MainOptions
-    <$> simpleOption "settings" "/etc/hummingbird/settings.yml" "Path to the .yaml configuration file"
+    <$> simpleOption "settings" "/etc/hummingbird/settings.yml" "Path to the .yml configuration file"
 
 run :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Proxy (Config.Config auth) -> MainOptions -> IO ()
 run authConfigProxy opts = Config.loadConfigFromFile (mainConfigFilePath opts) >>= \case

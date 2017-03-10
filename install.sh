@@ -44,9 +44,9 @@ chmod 755 $DIR_BIN/$SERVICE
 
 # Create default settings file (if not exists)
 
-if [ ! -f DIR_ETC/settings.yaml ]; then
-  SETTINGS=$DIR_ETC/settings.yaml
-  cp settings.yaml $SETTINGS
+if [ ! -f DIR_ETC/settings.yml ]; then
+  SETTINGS=$DIR_ETC/settings.yml
+  cp settings.yml $SETTINGS
   chown root:root $SETTINGS
   chmod 755 $SETTINGS
 fi

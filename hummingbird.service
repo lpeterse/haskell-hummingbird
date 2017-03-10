@@ -3,7 +3,7 @@ Description=Hummingbird MQTT Broker daemon
 Requires=network.target
 
 [Service]
-ExecStart=/usr/sbin/hummingbird broker --settings=/etc/hummingbird/settings.yaml
+ExecStart=/usr/sbin/hummingbird broker --settings=/etc/hummingbird/settings.yml
 Restart=on-failure
 User=hummingbird
 Group=hummingbird
