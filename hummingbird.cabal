@@ -40,6 +40,7 @@ library
   build-depends:        base
                       , aeson >= 1.1.0.0
                       , async
+                      , attoparsec
                       , bcrypt
                       , binary
                       , bytestring

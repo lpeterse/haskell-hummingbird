@@ -8,6 +8,7 @@ import qualified Crypto.BCrypt               as BCrypt
 import           Data.Aeson                  (FromJSON (..), (.:?))
 import           Data.Aeson.Types
 import qualified Data.ByteString             as BS
+import qualified Data.Attoparsec             as AP
 import           Data.Functor.Identity
 import           Data.List                   as L
 import qualified Data.Map                    as M
@@ -36,7 +37,7 @@ data SimplePrincipalConfig
    { cfgUsername     :: Maybe T.Text
    , cfgPasswordHash :: Maybe BS.ByteString
    , cfgQuota        :: Maybe SimpleQuotaConfig
-   , cfgPermissions  :: Maybe (R.Trie (Identity [Privilege]))
+   , cfgPermissions  :: M.Map Filter (Identity [Privilege])
    } deriving (Eq, Show)
 
 data SimpleQuotaConfig
@@ -92,8 +93,8 @@ instance Authenticator SimpleAuthenticator where
       Just pc -> pure $ Just Principal {
           principalUsername             = Username <$> cfgUsername pc
         , principalQuota                = mergeQuota (cfgQuota pc) (authDefaultQuota auth)
-        , principalPublishPermissions   = R.mapMaybe f $ fromMaybe R.empty $ cfgPermissions pc
-        , principalSubscribePermissions = R.mapMaybe g $ fromMaybe R.empty $ cfgPermissions pc
+        , principalPublishPermissions   = R.mapMaybe f $ M.foldrWithKey' R.insert R.empty (cfgPermissions pc)
+        , principalSubscribePermissions = R.mapMaybe g $ M.foldrWithKey' R.insert R.empty (cfgPermissions pc)
         }
     where
       f (Identity xs)
@@ -119,7 +120,7 @@ instance FromJSON SimplePrincipalConfig where
     <$> v .:? "username"
     <*> ((T.encodeUtf8 <$>) <$> v .:? "password")
     <*> v .:? "quota"
-    <*> v .:? "permissions"
+    <*> v .:? "permissions" .!= mempty
   parseJSON invalid = typeMismatch "SimplePrincipalConfig" invalid
 
 instance FromJSON SimpleQuotaConfig where
@@ -136,3 +137,16 @@ instance FromJSON (AuthenticatorConfig SimpleAuthenticator) where
     <$> v .: "principals"
     <*> v .: "defaultQuota"
   parseJSON invalid = typeMismatch "SimpleAuthenticatorConfig" invalid
+
+instance FromJSON Filter where
+  parseJSON (String t) =
+    case AP.parseOnly filterParser (T.encodeUtf8 t) of
+      Left e -> fail e
+      Right x -> pure x
+  parseJSON invalid = typeMismatch "Filter" invalid
+
+instance FromJSONKey Filter where
+  fromJSONKey = FromJSONKeyTextParser $ \t->
+    case AP.parseOnly filterParser (T.encodeUtf8 t) of
+      Left e -> fail e
+      Right x -> pure x

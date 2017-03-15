@@ -10,12 +10,8 @@ auth:
       username: "mqtt-default"
       password: "$2y$14$z1TeFmnk9zirP1Ml55lVyuOWOhaYyqlHlvd6meaze2KDYPH8hrdsS"
       permissions:
-        "abc":
-          "/":
-            "def":
-              "?": [ SUB ]
-            "#":
-              "?": [ PUB ]
+        "abc/def": [ SUB ]
+        "abc/#": [ PUB ]
 
 admin:
   socketPath: "/var/run/hummingbird/hummingbird.socket"
