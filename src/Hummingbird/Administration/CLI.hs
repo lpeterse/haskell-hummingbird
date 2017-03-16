@@ -3,6 +3,7 @@
 module Hummingbird.Administration.CLI ( runCommandLineInterface ) where
 
 import           Control.Exception                   (bracket)
+import           Data.Function
 import           Control.Monad                       (forever, void)
 import           Control.Monad.Trans.Class           (lift)
 import qualified Data.Binary                         as B
@@ -31,12 +32,17 @@ runCommandLineInterface config = H.runInputT H.defaultSettings $ do
   H.outputStrLn ""
   lift (execRequest Request.Broker) >>= Response.render H.outputStrLn
   H.outputStrLn ""
-  forever $
+  fix $ \continue->
     (Request.parse . fromMaybe "" <$> H.getInputLine prompt) >>= \case
+      Right Request.Quit ->
+        pure ()
       Right cmd  -> do
         response <- lift $ execRequest cmd
         Response.render H.outputStrLn response
-      Left e -> H.outputStrLn $ lightRed e
+        continue
+      Left e -> do
+        H.outputStrLn $ lightRed e
+        continue
   where
     execRequest :: Request.Request -> IO Response.Response
     execRequest cmd = case S.socketAddressUnixPath (T.encodeUtf8 $ T.pack $ C.adminSocketPath $ C.admin config) of

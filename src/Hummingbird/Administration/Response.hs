@@ -2,13 +2,16 @@
 module Hummingbird.Administration.Response where
 
 import           Control.Monad
+import           Data.Maybe
+import           Data.List (intercalate)
 import qualified Data.Binary                       as B
+import           Control.Monad.IO.Class
 import           Data.Int
-import qualified Data.Text                         as T
 import           Data.UUID                         (UUID)
 import           GHC.Generics                      (Generic)
+import           System.Clock
 import           Network.MQTT.Broker.Authentication       (Principal (..), Quota (..))
-import           Network.MQTT.Message              (ClientIdentifier (..))
+import           Network.MQTT.Message              (ClientIdentifier (..), Username (..))
 import           Network.MQTT.Broker.Session              (Connection,
                                                     connectionCleanSession,
                                                     connectionCreatedAt,
@@ -24,42 +27,31 @@ data Response
    | Failure String
    | Help
    | BrokerInfo
-   { brokerVersion           :: String
-   , brokerUptime            :: Int64
+   { brokerUptime            :: Int64
    , brokerSessionCount      :: Int
    , brokerSubscriptionCount :: Int
    }
    | Session SessionInfo
-   | SessionList [SessionListElement]
+   | SessionList [SessionInfo]
    | SessionSubscriptions String
-   deriving (Eq, Ord, Show, Generic)
-
-data SessionListElement
-   = SessionListElement
-   { lsessionIdentifier          :: Int
-   , lsessionClientIdentifier    :: ClientIdentifier
-   , lsessionPrincipalIdentifier :: UUID
-   , lsessionConnection          :: Maybe Connection
-   , lsessionCreatedAt           :: Int64
-   } deriving (Eq, Ord, Show, Generic)
+   deriving (Eq, Show, Generic)
 
 data SessionInfo
    = SessionInfo
    { sessionIdentifier          :: Int
+   , sessionCreatedAt           :: Int64
    , sessionClientIdentifier    :: ClientIdentifier
    , sessionPrincipalIdentifier :: UUID
-   , sessionCreatedAt           :: Int64
+   , sessionPrincipal           :: Principal
    , sessionConnection          :: Maybe Connection
    , sessionStatistics          :: SS.StatisticsSnapshot
-   , sessionQuota               :: Quota
    }
-   deriving (Eq, Ord, Show, Generic)
+   deriving (Eq, Show, Generic)
 
 instance B.Binary Response
-instance B.Binary SessionListElement
 instance B.Binary SessionInfo
 
-render :: Monad m => (String -> m ()) -> Response -> m ()
+render :: MonadIO m => (String -> m ()) -> Response -> m ()
 render p (Success msg) =
   p (cyan msg)
 
@@ -68,8 +60,11 @@ render p (Failure msg) =
 
 render p Help = do
     p "help                      : show this help"
-    p "broker"
-    p "  info                    : show broker information"
+    p "broker                    : show broker information"
+    p "config"
+    p "  reload                  : reload configuration file (does not apply it!)"
+--    p "auth"
+--    p "  restart                 : restart the authentication module (after config file reload)"
     p "sessions                  : list all sessions"
     p "  [0-9]+                  : show session summary"
     p "    disconnect            : disconnect associated client (if any)"
@@ -80,52 +75,71 @@ render p Help = do
     p "  stop                    : stop transports"
 
 render p info@BrokerInfo {} = do
-  format "Version            " $ brokerVersion info
+--  format "Version            " $ brokerVersion info
   format "Uptime             " $ ago (brokerUptime info)
   format "Sessions           " $ show (brokerSessionCount info)
   format "Subscriptions      " $ show (brokerSubscriptionCount info)
-  format "Throughput         " "20,454/s 9,779/s 15,831/s"
+--  format "Throughput         " "20,454/s 9,779/s 15,831/s"
   where
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m\STX"
 
 render p (Session s) = do
-  format "Created            " $ show (sessionCreatedAt s)
-  format "Identifier         " $ show (sessionClientIdentifier s)
+  now <- liftIO $ sec <$> getTime Realtime
+  format "Alive since                    " $ ago $ now - sessionCreatedAt s
+  format "Client                         " $ showEscaped clientIdentifier
+  format "Principal                      " $ showEscaped (sessionPrincipalIdentifier s)
+  case principalUsername (sessionPrincipal s) of
+    Nothing -> pure ()
+    Just (Username username) -> format "  Username                     " $ showEscaped username
+  p $ cyan "  Quota"
+  format "    Max idle session TTL       " $ show (quotaSessionTTL $ principalQuota $ sessionPrincipal s)
+  format "    Max inflight messages      " $ show (quotaMaxInflightMessages $ principalQuota $ sessionPrincipal s)
+  format "    Max queue size QoS 0       " $ show (quotaMaxQueueSizeQoS0 $ principalQuota $ sessionPrincipal s)
+  format "    Max queue size QoS 1       " $ show (quotaMaxQueueSizeQoS1 $ principalQuota $ sessionPrincipal s)
+  format "    Max queue size QoS 2       " $ show (quotaMaxQueueSizeQoS2 $ principalQuota $ sessionPrincipal s)
   case sessionConnection s of
-    Nothing -> format "Connection         " $ lightRed "not connected"
+    Nothing -> format "Connection                     " $ lightRed "not connected"
     Just conn -> do
       p $ cyan "Connection"
-      format "  Clean Session    " $ show (connectionCleanSession conn)
-      format "  Created          " $ show (connectionCreatedAt conn)
-      format "  Secure           " $ show (connectionSecure conn)
-      format "  WebSocket        " $ show (connectionWebSocket conn)
+      format "  Alive since                  " $ ago $ now - connectionCreatedAt conn
+      format "  Clean Session                " $ show (connectionCleanSession conn)
+      format "  Secure                       " $ show (connectionSecure conn)
+      format "  WebSocket                    " $ show (connectionWebSocket conn)
       case connectionRemoteAddress conn of
         Nothing   -> pure ()
-        Just addr -> format "  Remote Address   " $ show addr
-  p $ cyan "Quota"
-  format "  Max idle session TTL         " $ show (quotaSessionTTL $ sessionQuota s)
-  format "  Max inflight messages        " $ show (quotaMaxInflightMessages $ sessionQuota s)
-  format "  Max queue size QoS 0         " $ show (quotaMaxQueueSizeQoS0 $ sessionQuota s)
-  format "  Max queue size QoS 1         " $ show (quotaMaxQueueSizeQoS1 $ sessionQuota s)
-  format "  Max queue size QoS 2         " $ show (quotaMaxQueueSizeQoS2 $ sessionQuota s)
+        Just addr -> format "  Remote Address               " $ showEscaped addr
   p $ cyan "Statistics"
-  format "  Messages published           " $ show (SS.messagesPublished $ sessionStatistics s)
-  format "  Messages dropped             " $ show (SS.messagesDropped $ sessionStatistics s)
+  format "  Publications  accepted       " $ show (SS.publicationsAccepted  $ sessionStatistics s)
+  format "  Publications  dropped        " $ show (SS.publicationsDropped   $ sessionStatistics s)
+  format "  Subscriptions accepted       " $ show (SS.subscriptionsAccepted $ sessionStatistics s)
+  format "  Subscriptions denied         " $ show (SS.subscriptionsDenied   $ sessionStatistics s)
+  format "  Retentions    accepted       " $ show (SS.retentionsAccepted    $ sessionStatistics s)
+  format "  Retentions    dropped        " $ show (SS.retentionsDropped     $ sessionStatistics s)
   where
+    ClientIdentifier clientIdentifier = sessionClientIdentifier s
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m\STX"
 
-render p (SessionList ss) =
-  forM_ ss $ \session->
-    p $ statusDot (lsessionConnection session) ++
-    leftPad 8 ' ' (show $ lsessionIdentifier session) ++
-    leftPad 30 ' ' (showClientIdentifier $ lsessionClientIdentifier session)
+
+render p (SessionList ss) = do
+  now <- liftIO $ sec <$> getTime Realtime
+  forM_ ss $ \session-> do
+    let x1 = leftPad 8 ' '  $ show $ sessionIdentifier session
+    let x2 = status (sessionConnection session)
+    let x3 = leftPad 12 ' ' $ ago $ now - sessionCreatedAt session
+    let x4 = leftPad 35 ' ' $ lightCyan $ showEscaped $ sessionPrincipalIdentifier session
+    let x5 = leftPad 24 ' ' $ showClientIdentifier (sessionClientIdentifier session)
+    let x6 = leftPad 12 ' ' $ fromMaybe "" $ showEscaped <$> (sessionConnection session >>= connectionRemoteAddress)
+    p $ unwords [x1,x2,x3,x4,x5,x6]
   where
-    statusDot Nothing     = lightRed dot
-    statusDot (Just conn) | connectionCleanSession conn = lightBlue dot
-                          | otherwise                   = lightGreen dot
-    showClientIdentifier (ClientIdentifier s) = show s
+    status Nothing                                   = lightRed   "DISCONNECTED"
+    status (Just conn) | connectionCleanSession conn = lightBlue  "CONNECTED   "
+                       | otherwise                   = lightGreen "CONNECTED+  "
+    showClientIdentifier (ClientIdentifier s) = take 24 $ showEscaped s
 
 render p (SessionSubscriptions s) =
   p s
+
+showEscaped :: Show a => a -> String
+showEscaped = init . tail . show

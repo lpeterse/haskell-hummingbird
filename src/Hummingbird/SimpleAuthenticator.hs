@@ -95,12 +95,16 @@ instance Authenticator SimpleAuthenticator where
         , principalQuota                = mergeQuota (cfgQuota pc) (authDefaultQuota auth)
         , principalPublishPermissions   = R.mapMaybe f $ M.foldrWithKey' R.insert R.empty (cfgPermissions pc)
         , principalSubscribePermissions = R.mapMaybe g $ M.foldrWithKey' R.insert R.empty (cfgPermissions pc)
+        , principalRetainPermissions    = R.mapMaybe h $ M.foldrWithKey' R.insert R.empty (cfgPermissions pc)
         }
     where
       f (Identity xs)
         | Publish `elem` xs   = Just ()
         | otherwise           = Nothing
       g (Identity xs)
+        | Subscribe `elem` xs = Just ()
+        | otherwise           = Nothing
+      h (Identity xs)
         | Subscribe `elem` xs = Just ()
         | otherwise           = Nothing
       -- Prefers a user quota property over the default quota property.

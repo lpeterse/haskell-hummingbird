@@ -122,47 +122,19 @@ process Request.Help _ =
 
 process Request.Broker broker =
   Response.BrokerInfo
-  <$> pure "0.1.0-SNAPSHOT"
-  <*> Broker.getUptime (humBroker broker)
+  <$> Broker.getUptime (humBroker broker)
   <*> (IM.size <$> Broker.getSessions (humBroker broker))
   <*> (R.foldl' (\acc set-> acc + IS.size set) 0 <$> Broker.getSubscriptions (humBroker broker))
 
 process Request.Sessions broker = do
   sessions <- Broker.getSessions (humBroker broker)
-  Response.SessionList <$> mapM sessionListElement (IM.elems sessions)
-  where
-    sessionListElement :: Session.Session auth -> IO Response.SessionListElement
-    sessionListElement session = do
-      connection <- Session.getConnection session
-      pure Response.SessionListElement {
-          Response.lsessionIdentifier = Session.sessionIdentifier session
-        , Response.lsessionClientIdentifier = Session.sessionClientIdentifier session
-        , Response.lsessionPrincipalIdentifier = Session.sessionPrincipalIdentifier session
-        , Response.lsessionCreatedAt = Session.sessionCreatedAt session
-        , Response.lsessionConnection = connection
-        }
+  Response.SessionList <$> mapM sessionInfo (IM.elems sessions)
 
 process (Request.SessionsSelect sid) broker = do
   sessions <- Broker.getSessions (humBroker broker)
   case IM.lookup sid sessions of
     Nothing -> pure (Response.Failure "session not found")
     Just s  -> Response.Session <$> sessionInfo s
-  where
-    sessionInfo :: Session.Session auth -> IO Response.SessionInfo
-    sessionInfo session = do
-      connection <- Session.getConnection session
-      stats <- SS.snapshot $ Session.sessionStatistics session
-      subscriptions <- Session.getSubscriptions session
-      quota <- principalQuota <$> Session.getPrincipal session
-      pure Response.SessionInfo
-        { Response.sessionIdentifier = Session.sessionIdentifier session
-        , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
-        , Response.sessionPrincipalIdentifier = Session.sessionPrincipalIdentifier session
-        , Response.sessionConnection = connection
-        , Response.sessionCreatedAt = Session.sessionCreatedAt session
-        , Response.sessionStatistics = stats
-        , Response.sessionQuota = quota
-        }
 
 process (Request.SessionsSelectDisconnect sid) broker =
   try (Broker.disconnectSession (humBroker broker) sid) >>= \case
@@ -203,3 +175,19 @@ process Request.ConfigReload broker =
   reloadConfig broker >>= \case
     Right _ -> pure (Response.Success "Done.")
     Left e -> pure (Response.Failure e)
+
+sessionInfo :: Session.Session auth -> IO Response.SessionInfo
+sessionInfo session = do
+  connection <- Session.getConnection session
+  stats <- SS.snapshot $ Session.sessionStatistics session
+  subscriptions <- Session.getSubscriptions session
+  principal <- Session.getPrincipal session
+  pure Response.SessionInfo
+    { Response.sessionIdentifier = Session.sessionIdentifier session
+    , Response.sessionCreatedAt = Session.sessionCreatedAt session
+    , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
+    , Response.sessionPrincipalIdentifier = Session.sessionPrincipalIdentifier session
+    , Response.sessionPrincipal = principal
+    , Response.sessionConnection = connection
+    , Response.sessionStatistics = stats
+    }

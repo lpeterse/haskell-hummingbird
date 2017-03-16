@@ -19,6 +19,7 @@ data Request
    | TransportsStop
    | TransportsStart
    | TransportsStatus
+   | Quit
    deriving (Eq, Ord, Show, Generic)
 
 instance B.Binary Request
@@ -35,6 +36,8 @@ requestParser = spaces >> choice
   , string "config"     >> config
   , string "sessions"   >> sessions
   , string "transports" >> transports
+  , string "quit" >> spaces >> eof >> pure Quit
+  , string "exit" >> spaces >> eof >> pure Quit
   ]
   where
     broker :: Parser Request

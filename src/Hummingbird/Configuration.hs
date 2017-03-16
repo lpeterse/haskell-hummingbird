@@ -70,12 +70,14 @@ data TransportConfig
 data Privilege
    = Publish
    | Subscribe
+   | Retain
    deriving (Eq, Ord, Show)
 
 instance FromJSON Privilege where
   parseJSON (String "PUB") = pure Publish
   parseJSON (String "SUB") = pure Subscribe
-  parseJSON _              = fail "Expected 'PUB' or 'SUB'."
+  parseJSON (String "RET") = pure Retain
+  parseJSON _              = fail "Expected 'PUB', 'SUB', or 'RET'."
 
 instance FromJSON (R.Trie (Identity [Privilege])) where
   parseJSON (Object a) = R.Trie <$> HM.foldlWithKey' f (pure M.empty) a
