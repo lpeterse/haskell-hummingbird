@@ -1,0 +1,4 @@
+../hummingbird.service etc/systemd/system
+../.stack-work/dist/*/Cabal-*/build/hummingbird/hummingbird usr/sbin
+../.stack-work/dist/*/Cabal-*/build/hummingbird-cli/hummingbird-cli usr/sbin
+../settings.yml etc/hummingbird
