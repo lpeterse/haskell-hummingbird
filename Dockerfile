@@ -1,7 +1,7 @@
 FROM        ubuntu:16.04
 MAINTAINER	Lars Petersen <info@lars-petersen.net>
 
-RUN locale-gen en_US.UTF-8
+RUN         locale-gen en_US.UTF-8
 ENV         PATH="/root/.local/bin:${PATH}"
 ENV         LANG en_US.UTF-8
 ENV         LANGUAGE en_US:en
@@ -10,6 +10,11 @@ ENV         LC_ALL en_US.UTF-8
 RUN         DEBIAN_FRONTEND=noninteractive apt-get update && \
             DEBIAN_FRONTEND=noninteractive apt-get install -y \
              build-essential \
+             debhelper \
+             dh-make \
+             quilt \
+             fakeroot \
+             lintian \
              curl \
              libgmp-dev \
              git-core \
@@ -24,3 +29,4 @@ RUN         ln -s /lib/x86_64-linux-gnu/libtinfo.so.5 /lib/x86_64-linux-gnu/libt
 RUN         stack setup
 RUN         stack install
 RUN         stack test
+RUN         cd build && dpkg-buildpackage -b -us -uc
