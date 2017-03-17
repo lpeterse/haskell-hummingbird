@@ -26,7 +26,6 @@ library
   ghc-options:          -Wall
   exposed-modules:      Hummingbird
                       , Hummingbird.Administration.CLI
-                      , Hummingbird.Administration.CLI2
                       , Hummingbird.Administration.Escape
                       , Hummingbird.Administration.Request
                       , Hummingbird.Administration.Response
@@ -36,7 +35,6 @@ library
                       , Hummingbird.Configuration
                       , Hummingbird.SimpleAuthenticator
                       , Hummingbird.Transport
-                      , HummingbirdCli
   build-depends:        base
                       , aeson >= 1.1.0.0
                       , async
@@ -80,10 +78,16 @@ executable hummingbird
 
 executable hummingbird-cli
   build-depends:
-    base,
-    mqtt,
-    options,
-    hummingbird
+      base
+    , binary
+    , bytestring
+    , filepath
+    , hummingbird
+    , mqtt
+    , socket
+    , socket-unix
+    , text
+    , unix
   ghc-options:      -rtsopts -Wall -O2 -threaded -fprof-auto
   default-language: Haskell2010
   hs-source-dirs:   app

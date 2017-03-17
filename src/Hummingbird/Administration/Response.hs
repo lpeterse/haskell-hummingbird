@@ -129,7 +129,7 @@ render p (SessionList ss) = do
   forM_ ss $ \session-> do
     let x1 = leftPad 8 ' '  $ show $ sessionIdentifier session
     let x2 = status (sessionConnection session)
-    let x3 = leftPad 12 ' ' $ ago $ now - sessionCreatedAt session
+    let x3 = leftPad 18 ' ' $ ago $ now - sessionCreatedAt session
     let x4 = leftPad 35 ' ' $ lightCyan $ show $ sessionPrincipalIdentifier session
     let x5 = leftPad 24 ' ' $ showClientIdentifier (sessionClientIdentifier session)
     let x6 = leftPad 12 ' ' $ fromMaybe "" $ escapeByteString <$> (sessionConnection session >>= connectionRemoteAddress)
