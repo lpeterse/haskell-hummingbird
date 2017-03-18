@@ -12,6 +12,7 @@ import           GHC.Generics                          (Generic)
 import           Network.MQTT.Broker.Authentication    (Principal (..),
                                                         Quota (..))
 import           Network.MQTT.Broker.Session           (Connection,
+                                                        SessionIdentifier,
                                                         connectionCleanSession,
                                                         connectionCreatedAt,
                                                         connectionRemoteAddress,
@@ -40,7 +41,7 @@ data Response
 
 data SessionInfo
    = SessionInfo
-   { sessionIdentifier          :: Int
+   { sessionIdentifier          :: SessionIdentifier
    , sessionCreatedAt           :: Int64
    , sessionClientIdentifier    :: ClientIdentifier
    , sessionPrincipalIdentifier :: UUID

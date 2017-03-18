@@ -8,23 +8,21 @@ import qualified Crypto.BCrypt               as BCrypt
 import           Data.Aeson                  (FromJSON (..), (.:?))
 import           Data.Aeson.Types
 import qualified Data.ByteString             as BS
-import qualified Data.Attoparsec             as AP
+import qualified Data.Attoparsec.ByteString  as AP
 import           Data.Functor.Identity
-import           Data.List                   as L
 import qualified Data.Map                    as M
 import           Data.Maybe
 import qualified Data.Text                   as T
 import qualified Data.Text.Encoding          as T
 import           Data.Typeable
 import           Data.UUID                   (UUID)
-import qualified Data.UUID                   as UUID
 import           Data.Word
 
 import           Network.MQTT.Broker.Authentication
 import           Network.MQTT.Message
 import qualified Network.MQTT.Trie           as R
 
-import           Hummingbird.Configuration   hiding (auth)
+import qualified Hummingbird.Configuration   as C
 
 data SimpleAuthenticator
    = SimpleAuthenticator
@@ -37,7 +35,7 @@ data SimplePrincipalConfig
    { cfgUsername     :: Maybe T.Text
    , cfgPasswordHash :: Maybe BS.ByteString
    , cfgQuota        :: Maybe SimpleQuotaConfig
-   , cfgPermissions  :: M.Map Filter (Identity [Privilege])
+   , cfgPermissions  :: M.Map Filter (Identity [C.Privilege])
    } deriving (Eq, Show)
 
 data SimpleQuotaConfig
@@ -78,7 +76,7 @@ instance Authenticator SimpleAuthenticator where
           _           -> Nothing
       _ -> Nothing
     where
-      byUsernameAndPassword (Username reqUser) (Password reqPass) p@(uuid, principal) = do
+      byUsernameAndPassword (Username reqUser) (Password reqPass) p@(_, principal) = do
         -- Maybe monad - yields Nothing on failure!
         user <- cfgUsername principal
         pwhash <- cfgPasswordHash principal
@@ -99,22 +97,22 @@ instance Authenticator SimpleAuthenticator where
         }
     where
       f (Identity xs)
-        | Publish `elem` xs   = Just ()
-        | otherwise           = Nothing
+        | C.Publish `elem` xs   = Just ()
+        | otherwise             = Nothing
       g (Identity xs)
-        | Subscribe `elem` xs = Just ()
-        | otherwise           = Nothing
+        | C.Subscribe `elem` xs = Just ()
+        | otherwise             = Nothing
       h (Identity xs)
-        | Subscribe `elem` xs = Just ()
-        | otherwise           = Nothing
+        | C.Retain    `elem` xs = Just ()
+        | otherwise             = Nothing
       -- Prefers a user quota property over the default quota property.
       mergeQuota Nothing defaultQuota = defaultQuota
-      mergeQuota (Just principalQuota) defaultQuota = Quota {
-          quotaSessionTTL = fromMaybe (quotaSessionTTL defaultQuota) (cfgQuotaIdleSessionTTL principalQuota)
-        , quotaMaxInflightMessages = fromMaybe (quotaMaxInflightMessages defaultQuota) (cfgQuotaMaxInflightMessages principalQuota)
-        , quotaMaxQueueSizeQoS0 = fromMaybe (quotaMaxQueueSizeQoS0 defaultQuota) (cfgQuotaMaxQueueSizeQoS0 principalQuota)
-        , quotaMaxQueueSizeQoS1 = fromMaybe (quotaMaxQueueSizeQoS1 defaultQuota) (cfgQuotaMaxQueueSizeQoS1 principalQuota)
-        , quotaMaxQueueSizeQoS2 = fromMaybe (quotaMaxQueueSizeQoS2 defaultQuota) (cfgQuotaMaxQueueSizeQoS2 principalQuota)
+      mergeQuota (Just quota) defaultQuota = Quota {
+          quotaSessionTTL          = fromMaybe (quotaSessionTTL          defaultQuota) (cfgQuotaIdleSessionTTL      quota)
+        , quotaMaxInflightMessages = fromMaybe (quotaMaxInflightMessages defaultQuota) (cfgQuotaMaxInflightMessages quota)
+        , quotaMaxQueueSizeQoS0    = fromMaybe (quotaMaxQueueSizeQoS0    defaultQuota) (cfgQuotaMaxQueueSizeQoS0    quota)
+        , quotaMaxQueueSizeQoS1    = fromMaybe (quotaMaxQueueSizeQoS1    defaultQuota) (cfgQuotaMaxQueueSizeQoS1    quota)
+        , quotaMaxQueueSizeQoS2    = fromMaybe (quotaMaxQueueSizeQoS2    defaultQuota) (cfgQuotaMaxQueueSizeQoS2    quota)
        }
 
 instance Exception (AuthenticationException SimpleAuthenticator)

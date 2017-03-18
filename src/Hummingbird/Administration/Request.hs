@@ -6,16 +6,18 @@ import           GHC.Generics       (Generic)
 import           Text.Parsec        as P
 import           Text.Parsec.String (Parser)
 
+import           Network.MQTT.Broker.Session (SessionIdentifier (..))
+
 data Request
    = Help
    | Broker
    | Config
    | ConfigReload
    | Sessions
-   | SessionsSelect Int
-   | SessionsSelectDisconnect Int
-   | SessionsSelectTerminate Int
-   | SessionsSelectSubscriptions Int
+   | SessionsSelect SessionIdentifier
+   | SessionsSelectDisconnect SessionIdentifier
+   | SessionsSelectTerminate SessionIdentifier
+   | SessionsSelectSubscriptions SessionIdentifier
    | TransportsStop
    | TransportsStart
    | TransportsStatus
@@ -55,10 +57,10 @@ requestParser = spaces >> choice
       ]
     sessionsSelect :: Int -> Parser Request
     sessionsSelect i = spaces >> choice
-      [ eof >> pure (SessionsSelect i)
-      , string "disconnect" >> spaces >> eof >> pure (SessionsSelectDisconnect i)
-      , string "terminate"  >> spaces >> eof >> pure (SessionsSelectTerminate i)
-      , string "subscriptions" >> spaces >> eof >> pure (SessionsSelectSubscriptions i)
+      [ eof >> pure (SessionsSelect (SessionIdentifier i))
+      , string "disconnect" >> spaces >> eof >> pure (SessionsSelectDisconnect (SessionIdentifier i))
+      , string "terminate"  >> spaces >> eof >> pure (SessionsSelectTerminate (SessionIdentifier i))
+      , string "subscriptions" >> spaces >> eof >> pure (SessionsSelectSubscriptions (SessionIdentifier i))
       ]
     transports :: Parser Request
     transports = spaces >> choice

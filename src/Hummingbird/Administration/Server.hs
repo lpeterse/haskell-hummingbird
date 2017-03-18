@@ -130,26 +130,28 @@ process Request.Sessions broker = do
   sessions <- Broker.getSessions (humBroker broker)
   Response.SessionList <$> mapM sessionInfo (IM.elems sessions)
 
-process (Request.SessionsSelect sid) broker = do
-  sessions <- Broker.getSessions (humBroker broker)
-  case IM.lookup sid sessions of
-    Nothing -> pure (Response.Failure "session not found")
+process (Request.SessionsSelect sid) broker =
+  Broker.lookupSession sid (humBroker broker) >>= \case
+    Nothing -> pure (Response.Failure "Session not found.")
     Just s  -> Response.Session <$> sessionInfo s
 
 process (Request.SessionsSelectDisconnect sid) broker =
-  try (Broker.disconnectSession (humBroker broker) sid) >>= \case
-    Right () -> pure (Response.Success "Done.")
-    Left e -> pure (Response.Failure $ show (e :: SomeException))
+  Broker.lookupSession sid (humBroker broker) >>= \case
+    Nothing -> pure (Response.Failure "Session not found.")
+    Just s  -> try (Session.disconnect s) >>= \case
+      Right () -> pure (Response.Success "Done.")
+      Left e   -> pure (Response.Failure $ show (e :: SomeException))
 
 process (Request.SessionsSelectTerminate sid) broker =
-  try (Broker.terminateSession (humBroker broker) sid) >>= \case
-    Right () -> pure (Response.Success "Done.")
-    Left e -> pure (Response.Failure $ show (e :: SomeException))
+  Broker.lookupSession sid (humBroker broker) >>= \case
+    Nothing -> pure (Response.Failure "Session not found.")
+    Just s  -> try (Session.terminate s) >>= \case
+      Right () -> pure (Response.Success "Done.")
+      Left e   -> pure (Response.Failure $ show (e :: SomeException))
 
-process (Request.SessionsSelectSubscriptions sid) broker = do
-  sessions <- Broker.getSessions (humBroker broker)
-  case IM.lookup sid sessions of
-    Nothing -> pure (Response.Failure "session not found")
+process (Request.SessionsSelectSubscriptions sid) broker =
+  Broker.lookupSession sid (humBroker broker) >>= \case
+    Nothing -> pure (Response.Failure "Session not found.")
     Just s  -> Response.SessionSubscriptions . show <$> Session.getSubscriptions s
 
 process Request.TransportsStatus broker =

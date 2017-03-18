@@ -23,7 +23,7 @@ source-repository head
   location: git://github.com/lpeterse/haskell-hummingbird.git
 
 library
-  ghc-options:          -Wall
+  ghc-options:          -Wall -fno-warn-orphans
   exposed-modules:      Hummingbird
                       , Hummingbird.Administration.CLI
                       , Hummingbird.Administration.Escape

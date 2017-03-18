@@ -57,7 +57,7 @@ withBrokerFromSettingsPath settingsPath f = do
   LOG.infoM "hummingbird" "Started hummingbird MQTT message broker."
 
   authenticator <- Authentication.newAuthenticator (auth config)
-  broker <- Broker.new authenticator
+  broker <- Broker.newBroker authenticator
   trans <- async $ runTransports broker (transports config)
   _ <- forkIO (sysInfoPublisher broker)
   mconfig <- newMVar config
