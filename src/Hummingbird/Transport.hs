@@ -19,7 +19,7 @@ import qualified System.Socket.Type.Stream          as S
 
 import qualified Network.MQTT.Broker                as Broker
 import           Network.MQTT.Broker.Authentication
-import qualified Network.MQTT.Server                as Server
+import qualified Network.MQTT.Broker.Server         as Server
 
 import           Hummingbird.Configuration
 
@@ -32,21 +32,18 @@ runTransport broker transportConfig = case transportConfig of
   SocketTransport {} -> do
     cfg <- createSocketConfig transportConfig
     let mqttConfig = Server.MqttServerConfig {
-        Server.mqttMaxMessageSize  = maxMessageSize,
         Server.mqttTransportConfig = cfg
       } :: SS.ServerConfig (Server.MQTT (S.Socket S.Inet S.Stream S.Default))
     runServerStack mqttConfig broker
   TlsTransport {} -> do
     cfg <- createSecureSocketConfig transportConfig
     let mqttConfig = Server.MqttServerConfig {
-        Server.mqttMaxMessageSize  = maxMessageSize,
         Server.mqttTransportConfig = cfg
       }
     runServerStack mqttConfig broker
   WebSocketTransport socketConfig@SocketTransport {} -> do
     cfg <- createSocketConfig socketConfig
     let mqttConfig = Server.MqttServerConfig {
-      Server.mqttMaxMessageSize  = maxMessageSize,
       Server.mqttTransportConfig = SS.WebSocketServerConfig {
         SS.wsTransportConfig = cfg
       }
@@ -55,7 +52,6 @@ runTransport broker transportConfig = case transportConfig of
   WebSocketTransport tlsConfig@TlsTransport {} -> do
     cfg <- createSecureSocketConfig tlsConfig
     let mqttConfig = Server.MqttServerConfig {
-      Server.mqttMaxMessageSize  = maxMessageSize,
       Server.mqttTransportConfig = SS.WebSocketServerConfig {
         SS.wsTransportConfig = cfg
       }
@@ -63,10 +59,6 @@ runTransport broker transportConfig = case transportConfig of
     runServerStack mqttConfig broker
   _ -> error "Server stack not implemented."
   where
-    -- TODO: Shall be set per user after authentication
-    maxMessageSize :: Int64
-    maxMessageSize = 1000000
-
     createSocketConfig :: TransportConfig -> IO (SS.ServerConfig (S.Socket S.Inet S.Stream S.Default))
     createSocketConfig (SocketTransport a p b) = do
       (addrinfo:_) <- S.getAddressInfo (Just $ T.encodeUtf8 a) (Just $ T.encodeUtf8 $ T.pack $ show p) (mconcat [S.aiNumericHost, S.aiNumericService]) :: IO [S.AddressInfo S.Inet S.Stream S.Default]
@@ -107,4 +99,4 @@ runTransport broker transportConfig = case transportConfig of
 runServerStack :: (Authenticator auth, SS.StreamServerStack transport, Server.MqttServerTransportStack transport) => SS.ServerConfig (Server.MQTT transport) -> Broker.Broker auth -> IO ()
 runServerStack serverConfig broker =
   SS.withServer serverConfig $ \server-> forever $ SS.withConnection server $ \connection info->
-    Server.handleConnection broker serverConfig connection info
+    Server.serveConnection broker connection info

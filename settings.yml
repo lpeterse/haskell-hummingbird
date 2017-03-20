@@ -1,10 +1,11 @@
 auth:
   defaultQuota:
-    sessionTTL: 0
-    maxInflightMessages: 10
-    maxQueueSizeQoS0: 100
-    maxQueueSizeQoS1: 100
-    maxQueueSizeQoS2: 0
+    maxIdleSessionTTL:    0
+    maxPacketSize:        65535
+    maxPacketIdentifiers: 10
+    maxQueueSizeQoS0:     100
+    maxQueueSizeQoS1:     100
+    maxQueueSizeQoS2:     100
   principals:
     e4f7f759-a7f0-4ae7-8140-766269e1c503:
       username: "mqtt-default"

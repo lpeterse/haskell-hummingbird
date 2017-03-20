@@ -5,7 +5,6 @@ import           Control.Monad
 import           Control.Monad.IO.Class
 import qualified Data.Binary                           as B
 import           Data.Int
-import           Data.List                             (intercalate)
 import           Data.Maybe
 import           Data.UUID                             (UUID)
 import           GHC.Generics                          (Generic)
@@ -96,8 +95,9 @@ render p (Session s) = do
     Nothing -> pure ()
     Just (Username username) -> format "  Username                     " $ escapeText username
   p $ cyan "  Quota"
-  format "    Max idle session TTL       " $ show (quotaSessionTTL $ principalQuota $ sessionPrincipal s)
-  format "    Max inflight messages      " $ show (quotaMaxInflightMessages $ principalQuota $ sessionPrincipal s)
+  format "    Max idle session TTL       " $ show (quotaMaxIdleSessionTTL $ principalQuota $ sessionPrincipal s)
+  format "    Max packet size            " $ show (quotaMaxPacketSize $ principalQuota $ sessionPrincipal s)
+  format "    Max packet identifiers     " $ show (quotaMaxPacketIdentifiers $ principalQuota $ sessionPrincipal s)
   format "    Max queue size QoS 0       " $ show (quotaMaxQueueSizeQoS0 $ principalQuota $ sessionPrincipal s)
   format "    Max queue size QoS 1       " $ show (quotaMaxQueueSizeQoS1 $ principalQuota $ sessionPrincipal s)
   format "    Max queue size QoS 2       " $ show (quotaMaxQueueSizeQoS2 $ principalQuota $ sessionPrincipal s)
