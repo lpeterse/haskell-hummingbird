@@ -32,7 +32,6 @@ import           Network.MQTT.Broker.Authentication    (Authenticator,
                                                         AuthenticatorConfig,
                                                         Principal (..))
 import qualified Network.MQTT.Broker.Session           as Session
-import qualified Network.MQTT.Broker.SessionStatistics as SS
 import qualified Network.MQTT.Trie                     as R
 
 import qualified Hummingbird.Administration.Request    as Request
@@ -180,16 +179,16 @@ process Request.ConfigReload broker =
 
 sessionInfo :: Session.Session auth -> IO Response.SessionInfo
 sessionInfo session = do
-  connection <- Session.getConnection session
-  stats <- SS.snapshot $ Session.sessionStatistics session
+  connection    <- Session.getConnection session
+  stats         <- Session.getStatistic session
   subscriptions <- Session.getSubscriptions session
-  principal <- Session.getPrincipal session
+  principal     <- Session.getPrincipal session
   pure Response.SessionInfo
-    { Response.sessionIdentifier = Session.sessionIdentifier session
-    , Response.sessionCreatedAt = Session.sessionCreatedAt session
-    , Response.sessionClientIdentifier = Session.sessionClientIdentifier session
-    , Response.sessionPrincipalIdentifier = Session.sessionPrincipalIdentifier session
-    , Response.sessionPrincipal = principal
-    , Response.sessionConnection = connection
-    , Response.sessionStatistics = stats
+    { Response.sessionIdentifier          = Session.identifier session
+    , Response.sessionCreatedAt           = Session.createdAt session
+    , Response.sessionClientIdentifier    = Session.clientIdentifier session
+    , Response.sessionPrincipalIdentifier = Session.principalIdentifier session
+    , Response.sessionPrincipal           = principal
+    , Response.sessionConnection          = connection
+    , Response.sessionStatistic           = stats
     }

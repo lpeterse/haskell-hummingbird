@@ -12,12 +12,12 @@ import           Network.MQTT.Broker.Authentication    (Principal (..),
                                                         Quota (..))
 import           Network.MQTT.Broker.Session           (Connection,
                                                         SessionIdentifier,
+                                                        SessionStatistic (..),
                                                         connectionCleanSession,
                                                         connectionCreatedAt,
                                                         connectionRemoteAddress,
                                                         connectionSecure,
                                                         connectionWebSocket)
-import qualified Network.MQTT.Broker.SessionStatistics as SS
 import           Network.MQTT.Message                  (ClientIdentifier (..),
                                                         Username (..))
 import           System.Clock
@@ -46,7 +46,7 @@ data SessionInfo
    , sessionPrincipalIdentifier :: UUID
    , sessionPrincipal           :: Principal
    , sessionConnection          :: Maybe Connection
-   , sessionStatistics          :: SS.StatisticsSnapshot
+   , sessionStatistic           :: SessionStatistic
    }
    deriving (Eq, Show, Generic)
 
@@ -112,18 +112,17 @@ render p (Session s) = do
       case connectionRemoteAddress conn of
         Nothing   -> pure ()
         Just addr -> format "  Remote Address               " $ escapeByteString addr
-  p $ cyan "Statistics"
-  format "  Publications  accepted       " $ show (SS.publicationsAccepted  $ sessionStatistics s)
-  format "  Publications  dropped        " $ show (SS.publicationsDropped   $ sessionStatistics s)
-  format "  Subscriptions accepted       " $ show (SS.subscriptionsAccepted $ sessionStatistics s)
-  format "  Subscriptions denied         " $ show (SS.subscriptionsDenied   $ sessionStatistics s)
-  format "  Retentions    accepted       " $ show (SS.retentionsAccepted    $ sessionStatistics s)
-  format "  Retentions    dropped        " $ show (SS.retentionsDropped     $ sessionStatistics s)
+  p $ cyan "Statistic"
+  format "  Publications  accepted       " $ show (ssPublicationsAccepted  $ sessionStatistic s)
+  format "  Publications  dropped        " $ show (ssPublicationsDropped   $ sessionStatistic s)
+  format "  Retentions    accepted       " $ show (ssRetentionsAccepted    $ sessionStatistic s)
+  format "  Retentions    dropped        " $ show (ssRetentionsDropped     $ sessionStatistic s)
+  format "  Subscriptions accepted       " $ show (ssSubscriptionsAccepted $ sessionStatistic s)
+  format "  Subscriptions rejected       " $ show (ssSubscriptionsRejected $ sessionStatistic s)
   where
     ClientIdentifier clientIdentifier = sessionClientIdentifier s
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m"
-
 
 render p (SessionList ss) = do
   now <- liftIO $ sec <$> getTime Realtime
