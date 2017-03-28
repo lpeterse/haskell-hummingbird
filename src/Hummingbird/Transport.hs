@@ -3,7 +3,6 @@ module Hummingbird.Transport ( runTransports ) where
 import           Control.Concurrent.Async
 import           Control.Monad
 import           Data.Default
-import           Data.Int
 import qualified Data.Text                          as T
 import qualified Data.Text.Encoding                 as T
 import qualified Data.X509.CertificateStore         as X509
@@ -89,8 +88,16 @@ runTransport broker transportConfig = case transportConfig of
                         TLS.sharedCredentials = TLS.Credentials [credential]
                       }
                     , TLS.serverSupported = def {
-                        TLS.supportedVersions = [TLS.TLS12]
-                      , TLS.supportedCiphers  = TLS.ciphersuite_all
+                      TLS.supportedCiphers =
+                        TLS.ciphersuite_default
+                      , TLS.supportedVersions =
+                          [ TLS.TLS12 ]
+                      , TLS.supportedHashSignatures =
+                          [ (TLS.HashSHA384, TLS.SignatureRSA)
+                          , (TLS.HashSHA384, TLS.SignatureECDSA)
+                          , (TLS.HashSHA256, TLS.SignatureRSA)
+                          , (TLS.HashSHA256, TLS.SignatureECDSA)
+                          ]
                       }
                     }
                   }
