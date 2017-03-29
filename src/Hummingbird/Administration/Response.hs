@@ -11,7 +11,7 @@ import           GHC.Generics                          (Generic)
 import           Network.MQTT.Broker.Authentication    (Principal (..),
                                                         Quota (..))
 import           Network.MQTT.Broker.Session           (Connection,
-                                                        SessionIdentifier,
+                                                        SessionIdentifier (..),
                                                         SessionStatistic (..),
                                                         connectionCleanSession,
                                                         connectionCreatedAt,
@@ -113,12 +113,24 @@ render p (Session s) = do
         Nothing   -> pure ()
         Just addr -> format "  Remote Address               " $ escapeByteString addr
   p $ cyan "Statistic"
-  format "  Publications  accepted       " $ show (ssPublicationsAccepted  $ sessionStatistic s)
-  format "  Publications  dropped        " $ show (ssPublicationsDropped   $ sessionStatistic s)
-  format "  Retentions    accepted       " $ show (ssRetentionsAccepted    $ sessionStatistic s)
-  format "  Retentions    dropped        " $ show (ssRetentionsDropped     $ sessionStatistic s)
-  format "  Subscriptions accepted       " $ show (ssSubscriptionsAccepted $ sessionStatistic s)
-  format "  Subscriptions rejected       " $ show (ssSubscriptionsRejected $ sessionStatistic s)
+  p $ cyan "  Publications"
+  format "    accepted                   " $ show (ssPublicationsAccepted  $ sessionStatistic s)
+  format "    dropped                    " $ show (ssPublicationsDropped   $ sessionStatistic s)
+  p $ cyan "  Retentions"
+  format "    accepted                   " $ show (ssRetentionsAccepted    $ sessionStatistic s)
+  format "    dropped                    " $ show (ssRetentionsDropped     $ sessionStatistic s)
+  p $ cyan "  Subscriptions"
+  format "    accepted                   " $ show (ssSubscriptionsAccepted $ sessionStatistic s)
+  format "    rejected                   " $ show (ssSubscriptionsRejected $ sessionStatistic s)
+  p $ cyan "  Queue QoS0"
+  format "    length                     " $ show (ssQueueQoS0Length       $ sessionStatistic s)
+  format "    dropped                    " $ show (ssQueueQoS0Dropped      $ sessionStatistic s)
+  p $ cyan "  Queue QoS1"
+  format "    length                     " $ show (ssQueueQoS1Length       $ sessionStatistic s)
+  format "    dropped                    " $ show (ssQueueQoS1Dropped      $ sessionStatistic s)
+  p $ cyan "  Queue QoS2"
+  format "    length                     " $ show (ssQueueQoS2Length       $ sessionStatistic s)
+  format "    dropped                    " $ show (ssQueueQoS2Dropped      $ sessionStatistic s)
   where
     ClientIdentifier clientIdentifier = sessionClientIdentifier s
     format key value =
@@ -127,18 +139,23 @@ render p (Session s) = do
 render p (SessionList ss) = do
   now <- liftIO $ sec <$> getTime Realtime
   forM_ ss $ \session-> do
-    let x1 = leftPad 8 ' '  $ show $ sessionIdentifier session
+    let x1 = leftPad 8 ' '  $ showSessionIdentifier (sessionIdentifier session)
     let x2 = status (sessionConnection session)
     let x3 = leftPad 18 ' ' $ ago $ now - sessionCreatedAt session
-    let x4 = leftPad 35 ' ' $ lightCyan $ show $ sessionPrincipalIdentifier session
-    let x5 = leftPad 24 ' ' $ showClientIdentifier (sessionClientIdentifier session)
-    let x6 = leftPad 12 ' ' $ fromMaybe "" $ escapeByteString <$> (sessionConnection session >>= connectionRemoteAddress)
-    p $ unwords [x1,x2,x3,x4,x5,x6]
+    let x4 = q0l session ++  " " ++ q1l session ++ " " ++ q2l session
+    let x5 = lightCyan $ leftPad 35 ' ' $ show $ sessionPrincipalIdentifier session
+    let x6 = leftPad 24 ' ' $ showClientIdentifier (sessionClientIdentifier session)
+    let x7 = leftPad 12 ' ' $ fromMaybe "" $ escapeByteString <$> (sessionConnection session >>= connectionRemoteAddress)
+    p $ unwords [x1,x2,x3,x4,x5,x6,x7]
   where
     status Nothing                                   = lightRed   "IDLE"
     status (Just conn) | connectionCleanSession conn = lightBlue  "TEMP"
                        | otherwise                   = lightGreen "CONN"
-    showClientIdentifier (ClientIdentifier s) = take 24 $ escapeText s
+    showSessionIdentifier (SessionIdentifier s) = show s
+    showClientIdentifier  (ClientIdentifier  s) = take 24 $ escapeText s
+    q0l s = green $ leftPad 7 ' ' $ show (ssQueueQoS0Length $ sessionStatistic s)
+    q1l s = green $ leftPad 7 ' ' $ show (ssQueueQoS1Length $ sessionStatistic s)
+    q2l s = green $ leftPad 7 ' ' $ show (ssQueueQoS2Length $ sessionStatistic s)
 
 render p (SessionSubscriptions s) =
   p s

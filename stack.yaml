@@ -4,9 +4,9 @@ packages:
 #  - '../haskell-mqtt'
   - location:
       git: https://github.com/lpeterse/haskell-mqtt.git
-      commit: b10d54d6dc8fcf18ab7db7ef978654086070d660
+      commit: 5557638f255d6565b6eda69615dd298f4a717572
 extra-deps:
-  - mqtt-0.1.1.0
+  - mqtt-0.2.0.0
   - socket-0.8.0.1
   - socket-unix-0.2.0.0
   - aeson-1.1.0.0

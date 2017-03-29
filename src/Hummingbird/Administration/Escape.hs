@@ -26,6 +26,9 @@ purple = color "0;35"
 cyan  :: String -> String
 cyan = color "0;36"
 
+green :: String -> String
+green = color "0;32"
+
 darkGrey  :: String -> String
 darkGrey = color "1;30"
 
