@@ -10,14 +10,14 @@ import           Data.UUID                             (UUID)
 import           GHC.Generics                          (Generic)
 import           Network.MQTT.Broker.Authentication    (Principal (..),
                                                         Quota (..))
-import           Network.MQTT.Broker.Session           (Connection,
+import           Network.MQTT.Broker.Session           (ConnectionState (..),
                                                         SessionIdentifier (..),
                                                         SessionStatistic (..),
-                                                        connectionCleanSession,
-                                                        connectionCreatedAt,
-                                                        connectionRemoteAddress,
-                                                        connectionSecure,
-                                                        connectionWebSocket)
+                                                        connectedCleanSession,
+                                                        connectedAt,
+                                                        connectedRemoteAddress,
+                                                        connectedSecure,
+                                                        connectedWebSocket)
 import           Network.MQTT.Message                  (ClientIdentifier (..),
                                                         Username (..))
 import           System.Clock
@@ -29,9 +29,12 @@ data Response
    | Failure String
    | Help
    | BrokerInfo
-   { brokerUptime            :: Int64
-   , brokerSessionCount      :: Int
-   , brokerSubscriptionCount :: Int
+   { brokerUptime              :: Int64
+   , brokerSessionCount        :: Int
+   , brokerSubscriptionCount   :: Int
+   , brokerTransportException  :: Maybe String
+   , brokerTerminatorException :: Maybe String
+   , brokerSysInfoException    :: Maybe String
    }
    | Session SessionInfo
    | SessionList [SessionInfo]
@@ -45,7 +48,7 @@ data SessionInfo
    , sessionClientIdentifier    :: ClientIdentifier
    , sessionPrincipalIdentifier :: UUID
    , sessionPrincipal           :: Principal
-   , sessionConnection          :: Maybe Connection
+   , sessionConnectionState     :: ConnectionState
    , sessionStatistic           :: SessionStatistic
    }
    deriving (Eq, Show, Generic)
@@ -72,16 +75,26 @@ render p Help = do
     p "    disconnect            : disconnect associated client (if any)"
     p "    subscriptions         : show session subscriptions"
     p "    terminate             : terminate session (and disconnect client)"
+    p "  expiring                : show sessions in order of expiration"
     p "transports                : show status of transports"
     p "  start                   : start transports"
     p "  stop                    : stop transports"
 
 render p info@BrokerInfo {} = do
 --  format "Version            " $ brokerVersion info
-  format "Uptime             " $ ago (brokerUptime info)
-  format "Sessions           " $ show (brokerSessionCount info)
-  format "Subscriptions      " $ show (brokerSubscriptionCount info)
---  format "Throughput         " "20,454/s 9,779/s 15,831/s"
+  format "Uptime               " $ ago (brokerUptime info)
+  format "Sessions             " $ show (brokerSessionCount info)
+  format "Subscriptions        " $ show (brokerSubscriptionCount info)
+  p $ cyan "Threads"
+  format "  Transports         " $ case brokerTransportException info of
+    Nothing -> green "Running."
+    Just e  -> lightRed e
+  format "  Terminator         " $ case brokerTerminatorException info of
+    Nothing -> green "Running."
+    Just e  -> lightRed e
+  format "  SysInfo            " $ case brokerSysInfoException info of
+    Nothing -> green "Running."
+    Just e  -> lightRed e
   where
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m"
@@ -89,6 +102,11 @@ render p info@BrokerInfo {} = do
 render p (Session s) = do
   now <- liftIO $ sec <$> getTime Realtime
   format "Alive since                    " $ ago $ now - sessionCreatedAt s
+  case sessionConnectionState s of
+    Connected {} ->
+      pure ()
+    Disconnected { disconnectedSessionExpiresAt = expiresAt } ->
+      format "Expires in                     " $ lightRed $ ago $ expiresAt - now
   format "Client                         " $ escapeText clientIdentifier
   format "Principal                      " $ show (sessionPrincipalIdentifier s)
   case principalUsername (sessionPrincipal s) of
@@ -101,17 +119,22 @@ render p (Session s) = do
   format "    Max queue size QoS 0       " $ show (quotaMaxQueueSizeQoS0 $ principalQuota $ sessionPrincipal s)
   format "    Max queue size QoS 1       " $ show (quotaMaxQueueSizeQoS1 $ principalQuota $ sessionPrincipal s)
   format "    Max queue size QoS 2       " $ show (quotaMaxQueueSizeQoS2 $ principalQuota $ sessionPrincipal s)
-  case sessionConnection s of
-    Nothing -> format "Connection                     " $ lightRed "not connected"
-    Just conn -> do
-      p $ cyan "Connection"
-      format "  Alive since                  " $ ago $ now - connectionCreatedAt conn
-      format "  Clean Session                " $ show (connectionCleanSession conn)
-      format "  Secure                       " $ show (connectionSecure conn)
-      format "  WebSocket                    " $ show (connectionWebSocket conn)
-      case connectionRemoteAddress conn of
+  case sessionConnectionState s of
+    cs@Connected {} -> do
+      format "Connection                     " $ lightGreen "connected"
+      format "  Connected since              " $ ago  $ now - connectedAt cs
+      format "  Clean Session                " $ show $ connectedCleanSession cs
+      format "  Secure                       " $ show $ connectedSecure cs
+      format "  WebSocket                    " $ show $ connectedWebSocket cs
+      case connectedRemoteAddress cs of
         Nothing   -> pure ()
         Just addr -> format "  Remote Address               " $ escapeByteString addr
+    cs@Disconnected {} -> do
+      format "Connection                     " $ lightRed "disconnected"
+      format "  Disconnected since           " $ ago $ now - disconnectedAt cs
+      format "  Disconnected with            " $ case disconnectedWith cs of
+        Nothing -> "graceful disconnect"
+        Just msg -> lightRed msg
   p $ cyan "Statistic"
   p $ cyan "  Publications"
   format "    accepted                   " $ show (ssPublicationsAccepted  $ sessionStatistic s)
@@ -140,17 +163,22 @@ render p (SessionList ss) = do
   now <- liftIO $ sec <$> getTime Realtime
   forM_ ss $ \session-> do
     let x1 = leftPad 8 ' '  $ showSessionIdentifier (sessionIdentifier session)
-    let x2 = status (sessionConnection session)
+    let x2 = status now (sessionConnectionState session)
     let x3 = leftPad 18 ' ' $ ago $ now - sessionCreatedAt session
     let x4 = q0l session ++  " " ++ q1l session ++ " " ++ q2l session
     let x5 = lightCyan $ leftPad 35 ' ' $ show $ sessionPrincipalIdentifier session
     let x6 = leftPad 24 ' ' $ showClientIdentifier (sessionClientIdentifier session)
-    let x7 = leftPad 12 ' ' $ fromMaybe "" $ escapeByteString <$> (sessionConnection session >>= connectionRemoteAddress)
+    let x7 = leftPad 12 ' ' $ remoteAddr (sessionConnectionState session)
     p $ unwords [x1,x2,x3,x4,x5,x6,x7]
   where
-    status Nothing                                   = lightRed   "IDLE"
-    status (Just conn) | connectionCleanSession conn = lightBlue  "TEMP"
-                       | otherwise                   = lightGreen "CONN"
+    status now Disconnected { disconnectedSessionExpiresAt = expAt }
+      | expAt > now = lightRed     "DISCONNECTED"
+      | otherwise   = lightMagenta "EXPIRED     "
+    status _ Connected { connectedCleanSession = clean }
+      | clean       = lightYellow  "CONNECTED*  "
+      | otherwise   = lightGreen   "CONNECTED   "
+    remoteAddr Disconnected {} = ""
+    remoteAddr c@Connected  {} = fromMaybe "" $ escapeByteString <$> connectedRemoteAddress c
     showSessionIdentifier (SessionIdentifier s) = show s
     showClientIdentifier  (ClientIdentifier  s) = take 24 $ escapeText s
     q0l s = green $ leftPad 7 ' ' $ show (ssQueueQoS0Length $ sessionStatistic s)

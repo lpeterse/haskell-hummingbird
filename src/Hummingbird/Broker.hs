@@ -30,6 +30,8 @@ data HummingbirdBroker auth
    , humBroker       :: Broker.Broker auth
    , humConfig       :: MVar (Config auth)
    , humTransport    :: MVar (Async ())
+   , humTerminator   :: MVar (Async ()) -- ^ Session termination thread
+   , humSysInfo      :: MVar (Async ()) -- ^ Sys info publishing thread
    }
 
 data Status
@@ -58,17 +60,25 @@ withBrokerFromSettingsPath settingsPath f = do
 
   authenticator <- Authentication.newAuthenticator (auth config)
   broker <- Broker.newBroker authenticator
-  trans <- async $ runTransports broker (transports config)
-  _ <- forkIO (sysInfoPublisher broker)
-  mconfig <- newMVar config
-  mtransports <- newMVar trans
+
+  mconfig     <- newMVar config
+  mtransports <- newMVar =<< async (runTransports broker $ transports config)
+  mterminator <- newMVar =<< async (runTerminator broker)
+  msysinfo    <- newMVar =<< async (sysInfoPublisher broker)
 
   f HummingbirdBroker {
      humSettingsPath = settingsPath
    , humBroker       = broker
    , humConfig       = mconfig
    , humTransport    = mtransports
+   , humTerminator   = mterminator
+   , humSysInfo      = msysinfo
    }
+
+  where
+    runTerminator broker = forever $ do
+      Broker.terminateExpiredSessions broker
+      threadDelay 1000000
 
 getConfig :: HummingbirdBroker auth -> IO (Config auth)
 getConfig hum = readMVar (humConfig hum)

@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase       #-}
 module Hummingbird.Administration.Server ( runServerInterface ) where
 
+import           Control.Concurrent.MVar
 import           Control.Concurrent.Async
 import           Control.Exception                     (SomeException, bracket,
                                                         catch, try)
@@ -14,6 +15,8 @@ import           Data.Bits
 import qualified Data.ByteString                       as BS
 import qualified Data.IntMap                           as IM
 import qualified Data.IntSet                           as IS
+import qualified Data.Map                              as M
+import qualified Data.Set                              as S
 import           Data.Proxy
 import qualified Data.Text                             as T
 import qualified Data.Text.Encoding                    as T
@@ -124,10 +127,17 @@ process Request.Broker broker =
   <$> Broker.getUptime (humBroker broker)
   <*> (IM.size <$> Broker.getSessions (humBroker broker))
   <*> (R.foldl' (\acc set-> acc + IS.size set) 0 <$> Broker.getSubscriptions (humBroker broker))
+  <*> ((show <$>) <$> (poll =<< readMVar (humTransport  broker)))
+  <*> ((show <$>) <$> (poll =<< readMVar (humTerminator broker)))
+  <*> ((show <$>) <$> (poll =<< readMVar (humSysInfo    broker)))
 
 process Request.Sessions broker = do
   sessions <- Broker.getSessions (humBroker broker)
   Response.SessionList <$> mapM sessionInfo (IM.elems sessions)
+
+process Request.SessionsExpiring broker = do
+  sessions <- Broker.getSessionsByExpiration (humBroker broker)
+  Response.SessionList . concatMap snd . M.toAscList <$> mapM (mapM sessionInfo . S.toList) sessions
 
 process (Request.SessionsSelect sid) broker =
   Broker.lookupSession sid (humBroker broker) >>= \case
@@ -179,7 +189,7 @@ process Request.ConfigReload broker =
 
 sessionInfo :: Session.Session auth -> IO Response.SessionInfo
 sessionInfo session = do
-  connection    <- Session.getConnection session
+  connection    <- Session.getConnectionState session
   stats         <- Session.getStatistic session
   subscriptions <- Session.getSubscriptions session
   principal     <- Session.getPrincipal session
@@ -189,6 +199,6 @@ sessionInfo session = do
     , Response.sessionClientIdentifier    = Session.clientIdentifier session
     , Response.sessionPrincipalIdentifier = Session.principalIdentifier session
     , Response.sessionPrincipal           = principal
-    , Response.sessionConnection          = connection
+    , Response.sessionConnectionState     = connection
     , Response.sessionStatistic           = stats
     }

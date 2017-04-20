@@ -14,6 +14,7 @@ data Request
    | Config
    | ConfigReload
    | Sessions
+   | SessionsExpiring
    | SessionsSelect SessionIdentifier
    | SessionsSelectDisconnect SessionIdentifier
    | SessionsSelectTerminate SessionIdentifier
@@ -54,6 +55,7 @@ requestParser = spaces >> choice
     sessions = spaces >> choice
       [ eof >> pure Sessions
       , (read <$> many1 digit :: Parser Int) >>= sessionsSelect
+      , string "expiring" >> spaces >> eof >> pure SessionsExpiring
       ]
     sessionsSelect :: Int -> Parser Request
     sessionsSelect i = spaces >> choice

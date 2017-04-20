@@ -44,19 +44,28 @@ lightBlue = color "1;34"
 lightCyan  :: String -> String
 lightCyan = color "1;36"
 
+lightYellow :: String -> String
+lightYellow = color "1;93"
+
+lightMagenta :: String -> String
+lightMagenta = color "1;95"
+
 color :: String -> String -> String
 color c s = "\ESC[" ++ c ++ "m" ++ s ++ "\ESC[0m"
 
 ago :: (Show a, Integral a) => a -> String
-ago uptime =
-  show days ++ " day" ++ (if days /= 1 then "s, " else ", ") ++
+ago duration =
+  inverted $ show days ++ " day" ++ (if days /= 1 then "s, " else ", ") ++
   leftPad 2 '0' (show hours) ++ ":" ++ leftPad 2 '0' (show minutes) ++
   ":" ++ leftPad 2 '0' (show seconds)
   where
-    days   = quot uptime (24*3600)
-    hours   = rem uptime (24*3600) `quot` 3600
-    minutes = rem uptime 3600 `quot` 60
-    seconds = rem uptime 60
+    days   = quot (abs duration) (24*3600)
+    hours   = rem (abs duration) (24*3600) `quot` 3600
+    minutes = rem (abs duration) 3600 `quot` 60
+    seconds = rem (abs duration) 60
+    inverted s
+      | signum duration == 1 = s
+      | otherwise            = lightRed $ s ++ " ago"
 
 escapeText :: T.Text -> String
 escapeText = init . tail . show
