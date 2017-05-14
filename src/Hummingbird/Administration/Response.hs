@@ -3,23 +3,23 @@ module Hummingbird.Administration.Response where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
-import qualified Data.Binary                           as B
+import qualified Data.Binary                        as B
 import           Data.Int
 import           Data.Maybe
-import           Data.UUID                             (UUID)
-import           GHC.Generics                          (Generic)
-import           Network.MQTT.Broker.Authentication    (Principal (..),
-                                                        Quota (..))
-import           Network.MQTT.Broker.Session           (ConnectionState (..),
-                                                        SessionIdentifier (..),
-                                                        SessionStatistic (..),
-                                                        connectedCleanSession,
-                                                        connectedAt,
-                                                        connectedRemoteAddress,
-                                                        connectedSecure,
-                                                        connectedWebSocket)
-import           Network.MQTT.Message                  (ClientIdentifier (..),
-                                                        Username (..))
+import           Data.UUID                          (UUID)
+import           GHC.Generics                       (Generic)
+import           Network.MQTT.Broker.Authentication (Principal (..), Quota (..))
+import           Network.MQTT.Broker.Session        (ConnectionState (..),
+                                                     SessionIdentifier (..),
+                                                     SessionStatistic (..),
+                                                     connectedAt,
+                                                     connectedCleanSession,
+                                                     connectedRemoteAddress,
+                                                     connectedSecure,
+                                                     connectedWebSocket)
+import           Network.MQTT.Message               (ClientIdentifier (..),
+                                                     Username (..))
+import qualified Network.MQTT.Trie                  as Trie
 import           System.Clock
 
 import           Hummingbird.Administration.Escape
@@ -28,6 +28,9 @@ data Response
    = Success String
    | Failure String
    | Help
+   | AuthInfo
+   { authLastException         :: Maybe String
+   }
    | BrokerInfo
    { brokerUptime              :: Int64
    , brokerSessionCount        :: Int
@@ -68,8 +71,8 @@ render p Help = do
     p "broker                    : show broker information"
     p "config"
     p "  reload                  : reload configuration file (does not apply it!)"
---    p "auth"
---    p "  restart                 : restart the authentication module (after config file reload)"
+    p "auth"
+    p "  restart                 : restart the authentication module (after config file reload)"
     p "sessions                  : list all sessions"
     p "  [0-9]+                  : show session summary"
     p "    disconnect            : disconnect associated client (if any)"
@@ -99,6 +102,12 @@ render p info@BrokerInfo {} = do
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m"
 
+render p info@AuthInfo {} =
+  format "Last exception      " $ show (authLastException info)
+  where
+    format key value =
+      p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m"
+
 render p (Session s) = do
   now <- liftIO $ sec <$> getTime Realtime
   format "Alive since                    " $ ago $ now - sessionCreatedAt s
@@ -119,6 +128,13 @@ render p (Session s) = do
   format "    Max queue size QoS 0       " $ show (quotaMaxQueueSizeQoS0 $ principalQuota $ sessionPrincipal s)
   format "    Max queue size QoS 1       " $ show (quotaMaxQueueSizeQoS1 $ principalQuota $ sessionPrincipal s)
   format "    Max queue size QoS 2       " $ show (quotaMaxQueueSizeQoS2 $ principalQuota $ sessionPrincipal s)
+  p $ cyan "  Permissions"
+  p $ cyan "    Publish"
+  forM_ (fmap fst $ Trie.toList $ principalPublishPermissions   $ sessionPrincipal s) $ \f-> p ("      " ++ lightCyan (show f))
+  p $ cyan "    Subscribe"
+  forM_ (fmap fst $ Trie.toList $ principalSubscribePermissions $ sessionPrincipal s) $ \f-> p ("      " ++ lightCyan (show f))
+  p $ cyan "    Retain"
+  forM_ (fmap fst $ Trie.toList $ principalRetainPermissions    $ sessionPrincipal s) $ \f-> p ("      " ++ lightCyan (show f))
   case sessionConnectionState s of
     cs@Connected {} -> do
       format "Connection                     " $ lightGreen "connected"
@@ -133,7 +149,7 @@ render p (Session s) = do
       format "Connection                     " $ lightRed "disconnected"
       format "  Disconnected since           " $ ago $ now - disconnectedAt cs
       format "  Disconnected with            " $ case disconnectedWith cs of
-        Nothing -> "graceful disconnect"
+        Nothing  -> "graceful disconnect"
         Just msg -> lightRed msg
   p $ cyan "Statistic"
   p $ cyan "  Publications"

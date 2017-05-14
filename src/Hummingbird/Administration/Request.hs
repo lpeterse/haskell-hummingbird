@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Hummingbird.Administration.Request where
 
-import qualified Data.Binary        as B
-import           GHC.Generics       (Generic)
-import           Text.Parsec        as P
-import           Text.Parsec.String (Parser)
+import qualified Data.Binary                 as B
+import           GHC.Generics                (Generic)
+import           Text.Parsec                 as P
+import           Text.Parsec.String          (Parser)
 
 import           Network.MQTT.Broker.Session (SessionIdentifier (..))
 
@@ -13,6 +13,8 @@ data Request
    | Broker
    | Config
    | ConfigReload
+   | Auth
+   | AuthReload
    | Sessions
    | SessionsExpiring
    | SessionsSelect SessionIdentifier
@@ -34,11 +36,12 @@ parse s = case P.parse requestParser "" s of
 
 requestParser :: Parser Request
 requestParser = spaces >> choice
-  [ string "help"       >> spaces >> eof >> pure Help
-  , string "broker"     >> broker
-  , string "config"     >> config
-  , string "sessions"   >> sessions
-  , string "transports" >> transports
+  [ string "help"          >> spaces >> eof >> pure Help
+  , string "config"        >> config
+  , string "broker"        >> broker
+  , string "auth"          >> auth
+  , string "sessions"      >> sessions
+  , string "transports"    >> transports
   , string "quit" >> spaces >> eof >> pure Quit
   , string "exit" >> spaces >> eof >> pure Quit
   ]
@@ -51,6 +54,11 @@ requestParser = spaces >> choice
     config = spaces >> choice
       [ eof >> pure Config
       , string "reload" >> spaces >> eof >> pure ConfigReload ]
+    auth :: Parser Request
+    auth = spaces >> choice
+      [ eof >> pure Auth
+      , string "restart" >> spaces >> eof >> pure AuthReload
+      ]
     sessions :: Parser Request
     sessions = spaces >> choice
       [ eof >> pure Sessions

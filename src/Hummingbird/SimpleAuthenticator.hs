@@ -4,25 +4,25 @@
 module Hummingbird.SimpleAuthenticator where
 
 import           Control.Exception
-import qualified Crypto.BCrypt               as BCrypt
-import           Data.Aeson                  (FromJSON (..), (.:?))
+import qualified Crypto.BCrypt                      as BCrypt
+import           Data.Aeson                         (FromJSON (..), (.:?))
 import           Data.Aeson.Types
-import qualified Data.ByteString             as BS
-import qualified Data.Attoparsec.ByteString  as AP
+import qualified Data.Attoparsec.ByteString         as AP
+import qualified Data.ByteString                    as BS
 import           Data.Functor.Identity
-import qualified Data.Map                    as M
+import qualified Data.Map                           as M
 import           Data.Maybe
-import qualified Data.Text                   as T
-import qualified Data.Text.Encoding          as T
+import qualified Data.Text                          as T
+import qualified Data.Text.Encoding                 as T
 import           Data.Typeable
-import           Data.UUID                   (UUID)
+import           Data.UUID                          (UUID)
 import           Data.Word
 
 import           Network.MQTT.Broker.Authentication
 import           Network.MQTT.Message
-import qualified Network.MQTT.Trie           as R
+import qualified Network.MQTT.Trie                  as R
 
-import qualified Hummingbird.Configuration   as C
+import qualified Hummingbird.Configuration          as C
 
 data SimpleAuthenticator
    = SimpleAuthenticator
@@ -109,6 +109,8 @@ instance Authenticator SimpleAuthenticator where
         , quotaMaxQueueSizeQoS2     = fromMaybe (quotaMaxQueueSizeQoS2     defaultQuota) (cfgQuotaMaxQueueSizeQoS2     quota)
        }
 
+  getLastException _ = pure Nothing
+
 instance Exception (AuthenticationException SimpleAuthenticator)
 
 instance FromJSON SimplePrincipalConfig where
@@ -148,12 +150,12 @@ instance FromJSON (AuthenticatorConfig SimpleAuthenticator) where
 instance FromJSON Filter where
   parseJSON (String t) =
     case AP.parseOnly filterParser (T.encodeUtf8 t) of
-      Left e -> fail e
+      Left e  -> fail e
       Right x -> pure x
   parseJSON invalid = typeMismatch "Filter" invalid
 
 instance FromJSONKey Filter where
   fromJSONKey = FromJSONKeyTextParser $ \t->
     case AP.parseOnly filterParser (T.encodeUtf8 t) of
-      Left e -> fail e
+      Left e  -> fail e
       Right x -> pure x

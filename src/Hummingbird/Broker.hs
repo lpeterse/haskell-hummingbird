@@ -26,12 +26,13 @@ import           Hummingbird.Transport
 
 data HummingbirdBroker auth
    = HummingbirdBroker
-   { humSettingsPath :: FilePath
-   , humBroker       :: Broker.Broker auth
-   , humConfig       :: MVar (Config auth)
-   , humTransport    :: MVar (Async ())
-   , humTerminator   :: MVar (Async ()) -- ^ Session termination thread
-   , humSysInfo      :: MVar (Async ()) -- ^ Sys info publishing thread
+   { humSettingsPath  :: FilePath
+   , humBroker        :: Broker.Broker auth
+   , humConfig        :: MVar (Config auth)
+   , humAuthenticator :: MVar auth
+   , humTransport     :: MVar (Async ())
+   , humTerminator    :: MVar (Async ()) -- ^ Session termination thread
+   , humSysInfo       :: MVar (Async ()) -- ^ Sys info publishing thread
    }
 
 data Status
@@ -59,20 +60,24 @@ withBrokerFromSettingsPath settingsPath f = do
   LOG.infoM "hummingbird" "Started hummingbird MQTT message broker."
 
   authenticator <- Authentication.newAuthenticator (auth config)
-  broker <- Broker.newBroker authenticator
 
-  mconfig     <- newMVar config
-  mtransports <- newMVar =<< async (runTransports broker $ transports config)
-  mterminator <- newMVar =<< async (runTerminator broker)
-  msysinfo    <- newMVar =<< async (sysInfoPublisher broker)
+  mconfig        <- newMVar config
+  mauthenticator <- newMVar =<< Authentication.newAuthenticator (auth config)
+
+  broker <- Broker.newBroker (readMVar mauthenticator)
+
+  mtransports    <- newMVar =<< async (runTransports broker $ transports config)
+  mterminator    <- newMVar =<< async (runTerminator broker)
+  msysinfo       <- newMVar =<< async (sysInfoPublisher broker)
 
   f HummingbirdBroker {
-     humSettingsPath = settingsPath
-   , humBroker       = broker
-   , humConfig       = mconfig
-   , humTransport    = mtransports
-   , humTerminator   = mterminator
-   , humSysInfo      = msysinfo
+     humSettingsPath  = settingsPath
+   , humBroker        = broker
+   , humConfig        = mconfig
+   , humAuthenticator = mauthenticator
+   , humTransport     = mtransports
+   , humTerminator    = mterminator
+   , humSysInfo       = msysinfo
    }
 
   where
@@ -88,6 +93,12 @@ reloadConfig hum = modifyMVar (humConfig hum) $ \config->
   loadConfigFromFile (humSettingsPath hum) >>= \case
     Left  e -> pure (config, Left e)
     Right config' -> pure (config', Right config')
+
+restartAuthenticator :: Authenticator auth => HummingbirdBroker auth -> IO ()
+restartAuthenticator hum = do
+  config <- readMVar (humConfig hum)
+  authenticator <- Authentication.newAuthenticator (auth config)
+  void $ swapMVar (humAuthenticator hum) authenticator
 
 getTransportsStatus :: HummingbirdBroker auth -> IO Status
 getTransportsStatus hum =
