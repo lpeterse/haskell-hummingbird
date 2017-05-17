@@ -7,6 +7,7 @@ import qualified Data.Binary                        as B
 import           Data.Int
 import           Data.Maybe
 import           Data.UUID                          (UUID)
+import qualified Data.UUID                          as UUID
 import           GHC.Generics                       (Generic)
 import           Network.MQTT.Broker.Authentication (Principal (..), Quota (..))
 import           Network.MQTT.Broker.Session        (ConnectionState (..),
@@ -180,12 +181,11 @@ render p (SessionList ss) = do
   forM_ ss $ \session-> do
     let x1 = leftPad 8 ' '  $ showSessionIdentifier (sessionIdentifier session)
     let x2 = status now (sessionConnectionState session)
-    let x3 = leftPad 18 ' ' $ ago $ now - sessionCreatedAt session
-    let x4 = q0l session ++  " " ++ q1l session ++ " " ++ q2l session
-    let x5 = lightCyan $ leftPad 35 ' ' $ show $ sessionPrincipalIdentifier session
-    let x6 = leftPad 24 ' ' $ showClientIdentifier (sessionClientIdentifier session)
-    let x7 = leftPad 12 ' ' $ remoteAddr (sessionConnectionState session)
-    p $ unwords [x1,x2,x3,x4,x5,x6,x7]
+    let x3 = rightPad 56 ' ' $ lightCyan $ escapeText $ username session
+    let x4 = leftPad 18 ' ' $ ago $ now - sessionCreatedAt session
+    let x5 = q0l session ++  " " ++ q1l session ++ " " ++ q2l session
+    let x6 = leftPad 12 ' ' $ remoteAddr (sessionConnectionState session)
+    p $ unwords [x1,x2,x3,x6,x4,x5]
   where
     status now Disconnected { disconnectedSessionExpiresAt = expAt }
       | expAt > now = lightRed     "DISCONNECTED"
@@ -193,6 +193,9 @@ render p (SessionList ss) = do
     status _ Connected { connectedCleanSession = clean }
       | clean       = lightYellow  "CONNECTED*  "
       | otherwise   = lightGreen   "CONNECTED   "
+    username s = case principalUsername (sessionPrincipal s) of
+      Nothing           -> UUID.toText (sessionPrincipalIdentifier s)
+      Just (Username u) -> u
     remoteAddr Disconnected {} = ""
     remoteAddr c@Connected  {} = fromMaybe "" $ escapeByteString <$> connectedRemoteAddress c
     showSessionIdentifier (SessionIdentifier s) = show s
