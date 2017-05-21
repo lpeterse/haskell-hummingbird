@@ -2,6 +2,7 @@ module Hummingbird.Transport ( runTransports ) where
 
 import           Control.Concurrent.Async
 import           Control.Monad
+import           Control.Exception
 import           Data.Default
 import qualified Data.Text                          as T
 import qualified Data.Text.Encoding                 as T
@@ -9,12 +10,11 @@ import qualified Data.X509.CertificateStore         as X509
 import qualified Network.Stack.Server               as SS
 import qualified Network.TLS                        as TLS
 import qualified Network.TLS.Extra.Cipher           as TLS
-import           System.Exit
-import           System.IO
 import qualified System.Socket                      as S
 import qualified System.Socket.Family.Inet          as S
 import qualified System.Socket.Protocol.Default     as S
 import qualified System.Socket.Type.Stream          as S
+import qualified System.Log.Logger                  as LOG
 
 import qualified Network.MQTT.Broker                as Broker
 import           Network.MQTT.Broker.Authentication
@@ -25,6 +25,9 @@ import           Hummingbird.Configuration
 runTransports :: Authenticator auth => Broker.Broker auth -> [ TransportConfig ] -> IO ()
 runTransports broker transportConfigs =
   void $ forConcurrently transportConfigs (runTransport broker)
+    `catch` \e-> do
+      LOG.errorM "transports" $ "Transports thread died: " ++ show (e :: SomeException)
+      throwIO e
 
 runTransport :: Authenticator auth => Broker.Broker auth -> TransportConfig -> IO ()
 runTransport broker transportConfig = case transportConfig of
@@ -70,9 +73,8 @@ runTransport broker transportConfig = case transportConfig of
     createSecureSocketConfig (TlsTransport tc cc ca crt key) = do
       mcs <- X509.readCertificateStore ca
       case mcs of
-        Nothing -> do
-          hPutStrLn stderr $ ca ++ ": cannot read/interpret."
-          exitFailure
+        Nothing ->
+          error $ show ca ++ ": cannot read/interpret."
         Just cs -> do
           ecred <- TLS.credentialLoadX509 crt key
           case ecred of
