@@ -19,6 +19,7 @@ import qualified Data.Binary.Put                     as B
 import qualified Data.ByteString                     as BS
 import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
+import           Options
 import           System.Environment
 import           System.Exit
 import           System.IO                           (hPutStrLn, stderr)
@@ -28,33 +29,45 @@ import qualified System.Socket.Family.Unix           as S
 import qualified System.Socket.Protocol.Default      as S
 import qualified System.Socket.Type.Stream           as S
 
+import qualified Hummingbird.Administration.CLI      as CLI
 import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
 
+-- | Execute a command using a local unix domain socket
+--   served by a running hummingbird broker.
 main :: IO ()
-main = do
-  args <- getArgs
-  case Request.parse (unwords args) of
-    Right cmd -> do
-      response <- execRequest cmd
-      Response.render putStrLn response
-    Left e  -> hPutStrLn stderr e >> exitFailure
+main =
+  runCommand $ \opts _args-> do
+    socketPath <- findSocket potentialSocketLocations
+    if interactive opts
+      then CLI.runCommandLineInterface socketPath
+      else case Request.parse (cmd opts) of
+        Right cmd -> Response.render putStrLn =<< execRequest socketPath cmd
+        Left e    -> hPutStrLn stderr e >> exitFailure
+
   where
-    findSocket :: IO FilePath
-    findSocket = do
-      exists <- Files.fileExist "./hummingbird.socket"
+    potentialSocketLocations :: [FilePath]
+    potentialSocketLocations = [
+        "./hummingbird.sock"
+      , "/run/hummingbird/hummingbird.sock"
+      ]
+
+    findSocket :: [FilePath] -> IO FilePath
+    findSocket [] = do
+      hPutStrLn stderr "Cannot find administration socket."
+      exitFailure
+    findSocket (x:xs) = do
+      exists <- Files.fileExist x
       if exists
-        then pure "./hummingbird.socket"
-        else do
-          exists' <- Files.fileExist "/var/run/hummingbird/hummingbird.socket"
-          if exists'
-            then pure "./hummingbird.socket"
-            else hPutStrLn stderr "Cannot find hummingbird.socket" >> exitFailure
-    execRequest :: Request.Request -> IO Response.Response
-    execRequest cmd = do
-      path <- findSocket
-      case S.socketAddressUnixPath (T.encodeUtf8 $ T.pack path) of
-        Nothing -> hPutStrLn stderr "Illegal state" >> exitFailure
+        then pure x
+        else findSocket xs
+
+    execRequest :: FilePath -> Request.Request -> IO Response.Response
+    execRequest socketPath cmd =
+      case S.socketAddressUnixPath (T.encodeUtf8 $ T.pack socketPath) of
+        Nothing -> do
+          hPutStrLn stderr "Invalid socket file path."
+          exitFailure
         Just addr -> bracket
           ( S.socket :: IO (S.Socket S.Unix S.Stream S.Default) ) S.close
           (\sock-> S.connect sock addr >> sendMessage sock cmd >> receiveMessage sock )
@@ -70,3 +83,13 @@ main = do
                   execute $ continuation (if BS.null bs then Nothing else Just bs)
                 B.Done _ _ msg -> pure msg
                 B.Fail _ _ failure -> error failure
+
+data MainOptions = MainOptions
+  { interactive :: Bool
+  , cmd         :: String
+  }
+
+instance Options MainOptions where
+  defineOptions = MainOptions
+    <$> simpleOption "interactive" True "Start an interactive command line interpreter."
+    <*> simpleOption "cmd" "help" "The command to execute (only when non-interactive)."

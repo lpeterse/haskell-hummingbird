@@ -1,14 +1,15 @@
-resolver: lts-8.13
+resolver: lts-9.0
 packages:
   - '.'
 #  - '../haskell-mqtt'
   - location:
       git: https://github.com/lpeterse/haskell-mqtt.git
-      commit: 939e8e584330b8cc369825a91131fbc1fc37714c
+      commit: 0dc6532f4d720c619c8151035caf11b1f676c437
 extra-deps:
   - mqtt-0.3.0.0
   - socket-0.8.0.1
   - socket-unix-0.2.0.0
+  - websockets-0.12.1.0
   - aeson-1.1.0.0
 flags: {}
 extra-package-dbs: []

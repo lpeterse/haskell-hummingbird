@@ -3,21 +3,30 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Hummingbird.Configuration where
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Main
+-- Copyright   :  (c) Lars Petersen 2017
+-- License     :  MIT
+--
+-- Maintainer  :  info@lars-petersen.net
+-- Stability   :  experimental
+--------------------------------------------------------------------------------
 
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.Functor.Identity
-import qualified Data.HashMap.Strict         as HM
+import qualified Data.HashMap.Strict                as HM
 import           Data.Int
-import qualified Data.Map                    as M
+import qualified Data.Map                           as M
 import           Data.String
-import qualified Data.Text                   as T
+import qualified Data.Text                          as T
 import           Data.Word
-import qualified Data.Yaml                   as Yaml
-import qualified System.Log.Logger           as Log
+import qualified Data.Yaml                          as Yaml
+import qualified System.Log.Logger                  as Log
 
 import           Network.MQTT.Broker.Authentication
-import qualified Network.MQTT.Trie           as R
+import qualified Network.MQTT.Trie                  as R
 
 loadConfigFromFile :: (FromJSON (AuthenticatorConfig auth)) => FilePath -> IO (Either String (Config auth))
 loadConfigFromFile path = do
@@ -56,7 +65,9 @@ data TransportConfig
      , listenBacklog :: Int
      }
    | WebSocketTransport
-     { transport         :: TransportConfig
+     { wsTransport             :: TransportConfig
+     , wsFramePayloadSizeLimit :: Int64
+     , wsMessageDataSizeLimit  :: Int64
      }
    | TlsTransport
      { tlsTransport      :: TransportConfig
@@ -153,6 +164,8 @@ instance FromJSON TransportConfig where
     case t of
       "websocket" -> WebSocketTransport
         <$> v .: "transport"
+        <*> v .:? "framePayloadSizeLimit" .!= 65535
+        <*> v .:? "messageDataSizeLimit"  .!= 65535
       "socket" -> SocketTransport
         <$> v .: "bindAddress"
         <*> v .: "bindPort"

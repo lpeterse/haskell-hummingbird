@@ -2,6 +2,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies      #-}
 module Hummingbird.SimpleAuthenticator where
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Main
+-- Copyright   :  (c) Lars Petersen 2017
+-- License     :  MIT
+--
+-- Maintainer  :  info@lars-petersen.net
+-- Stability   :  experimental
+--------------------------------------------------------------------------------
 
 import           Control.Exception
 import qualified Crypto.BCrypt                      as BCrypt

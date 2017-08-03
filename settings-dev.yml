@@ -14,7 +14,7 @@ auth:
         "#": [ PUB, SUB, RET ]
 
 admin:
-  socketPath: "hummingbird.socket"
+  socketPath: "hummingbird.sock"
 
 transports:
   - type: socket

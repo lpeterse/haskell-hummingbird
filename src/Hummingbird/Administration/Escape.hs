@@ -1,4 +1,13 @@
 module Hummingbird.Administration.Escape where
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Main
+-- Copyright   :  (c) Lars Petersen 2017
+-- License     :  MIT
+--
+-- Maintainer  :  info@lars-petersen.net
+-- Stability   :  experimental
+--------------------------------------------------------------------------------
 
 import qualified Data.ByteString as BS
 import qualified Data.Text       as T

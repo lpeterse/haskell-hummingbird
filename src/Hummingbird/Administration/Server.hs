@@ -1,6 +1,15 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase       #-}
 module Hummingbird.Administration.Server ( runServerInterface ) where
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Main
+-- Copyright   :  (c) Lars Petersen 2017
+-- License     :  MIT
+--
+-- Maintainer  :  info@lars-petersen.net
+-- Stability   :  experimental
+--------------------------------------------------------------------------------
 
 import           Control.Concurrent.Async
 import           Control.Concurrent.MVar
@@ -15,9 +24,7 @@ import           Data.Bits
 import qualified Data.ByteString                     as BS
 import qualified Data.IntMap                         as IM
 import qualified Data.IntSet                         as IS
-import qualified Data.Map                            as M
 import           Data.Proxy
-import qualified Data.Set                            as S
 import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
 import           System.Exit
@@ -33,7 +40,6 @@ import qualified System.Socket.Type.Stream           as S
 import qualified Network.MQTT.Broker                 as Broker
 import           Network.MQTT.Broker.Authentication  (Authenticator,
                                                       AuthenticatorConfig,
-                                                      Principal (..),
                                                       getLastException)
 import qualified Network.MQTT.Broker.Session         as Session
 import qualified Network.MQTT.Trie                   as R
@@ -125,7 +131,8 @@ process Request.Help _ =
 
 process Request.Broker broker =
   Response.BrokerInfo
-  <$> Broker.getUptime (humBroker broker)
+  <$> pure (humVersion broker)
+  <*> Broker.getUptime (humBroker broker)
   <*> (IM.size <$> Broker.getSessions (humBroker broker))
   <*> (R.foldl' (\acc set-> acc + IS.size set) 0 <$> Broker.getSubscriptions (humBroker broker))
   <*> ((show <$>) <$> (poll =<< readMVar (humTransport  broker)))
@@ -137,7 +144,7 @@ process Request.Auth broker = do
   e <- getLastException authenticator
   pure $ Response.AuthInfo (show <$> e)
 
-process Request.AuthReload broker = do
+process Request.AuthReload broker =
   try (restartAuthenticator broker) >>= \case
     Right () -> pure (Response.Success "Done.")
     Left e   -> pure (Response.Failure $ show (e :: SomeException ))
@@ -145,10 +152,6 @@ process Request.AuthReload broker = do
 process Request.Sessions broker = do
   sessions <- Broker.getSessions (humBroker broker)
   Response.SessionList <$> mapM sessionInfo (IM.elems sessions)
-
-process Request.SessionsExpiring broker = do
-  sessions <- Broker.getSessionsByExpiration (humBroker broker)
-  Response.SessionList . concatMap snd . M.toAscList <$> mapM (mapM sessionInfo . S.toList) sessions
 
 process (Request.SessionsSelect sid) broker =
   Broker.lookupSession sid (humBroker broker) >>= \case
@@ -175,7 +178,7 @@ process (Request.SessionsSelectSubscriptions sid) broker =
     Just s  -> Response.SessionSubscriptions . show <$> Session.getSubscriptions s
 
 process Request.TransportsStatus broker =
-  getTransportsStatus broker >>= \case
+  statusTransports broker >>= \case
     Running -> pure (Response.Success "Running.")
     Stopped -> pure (Response.Success "Stopped.")
     StoppedWithException e -> pure (Response.Failure $ "Stopped with exception: " ++ show e)
@@ -198,11 +201,13 @@ process Request.ConfigReload broker =
     Right _ -> pure (Response.Success "Done.")
     Left e -> pure (Response.Failure e)
 
+process Request.Quit _ =
+  pure (Response.Success "Bye.")
+
 sessionInfo :: Session.Session auth -> IO Response.SessionInfo
 sessionInfo session = do
   connection    <- Session.getConnectionState session
   stats         <- Session.getStatistic session
-  subscriptions <- Session.getSubscriptions session
   principal     <- Session.getPrincipal session
   pure Response.SessionInfo
     { Response.sessionIdentifier          = Session.identifier session

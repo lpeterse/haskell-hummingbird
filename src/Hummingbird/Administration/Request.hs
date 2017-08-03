@@ -1,5 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Hummingbird.Administration.Request where
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Main
+-- Copyright   :  (c) Lars Petersen 2017
+-- License     :  MIT
+--
+-- Maintainer  :  info@lars-petersen.net
+-- Stability   :  experimental
+--------------------------------------------------------------------------------
 
 import qualified Data.Binary                 as B
 import           GHC.Generics                (Generic)
@@ -16,7 +25,6 @@ data Request
    | Auth
    | AuthReload
    | Sessions
-   | SessionsExpiring
    | SessionsSelect SessionIdentifier
    | SessionsSelectDisconnect SessionIdentifier
    | SessionsSelectTerminate SessionIdentifier
@@ -40,10 +48,10 @@ requestParser = spaces >> choice
   , string "config"        >> config
   , string "broker"        >> broker
   , string "auth"          >> auth
-  , string "sessions"      >> sessions
-  , string "transports"    >> transports
-  , string "quit" >> spaces >> eof >> pure Quit
-  , string "exit" >> spaces >> eof >> pure Quit
+  , string "session"       >> optional (string "s") >> sessions
+  , string "transport"     >> optional (string "s") >> transports
+  , string "quit"          >> spaces >> eof >> pure Quit
+  , string "exit"          >> spaces >> eof >> pure Quit
   ]
   where
     broker :: Parser Request
@@ -55,26 +63,25 @@ requestParser = spaces >> choice
       [ eof >> pure Config
       , string "reload" >> spaces >> eof >> pure ConfigReload ]
     auth :: Parser Request
-    auth = spaces >> choice
-      [ eof >> pure Auth
-      , string "restart" >> spaces >> eof >> pure AuthReload
+    auth = choice
+      [ try $ space >> spaces >> string "restart"       >> spaces >> eof >> pure AuthReload
+      , try $                                              spaces >> eof >> pure Auth
       ]
     sessions :: Parser Request
-    sessions = spaces >> choice
-      [ eof >> pure Sessions
-      , (read <$> many1 digit :: Parser Int) >>= sessionsSelect
-      , string "expiring" >> spaces >> eof >> pure SessionsExpiring
+    sessions = choice
+      [ try $ space >> spaces >> (read <$> many1 digit :: Parser Int) >>= sessionsSelect
+      , try $ spaces >> eof >> pure Sessions
       ]
     sessionsSelect :: Int -> Parser Request
-    sessionsSelect i = spaces >> choice
-      [ eof >> pure (SessionsSelect (SessionIdentifier i))
-      , string "disconnect" >> spaces >> eof >> pure (SessionsSelectDisconnect (SessionIdentifier i))
-      , string "terminate"  >> spaces >> eof >> pure (SessionsSelectTerminate (SessionIdentifier i))
-      , string "subscriptions" >> spaces >> eof >> pure (SessionsSelectSubscriptions (SessionIdentifier i))
+    sessionsSelect i = choice
+      [ try $ space >> spaces >> string "disconnect"    >> spaces >> eof >> pure (SessionsSelectDisconnect    $ SessionIdentifier i)
+      , try $ space >> spaces >> string "terminate"     >> spaces >> eof >> pure (SessionsSelectTerminate     $ SessionIdentifier i)
+      , try $ space >> spaces >> string "subscriptions" >> spaces >> eof >> pure (SessionsSelectSubscriptions $ SessionIdentifier i)
+      , try $                                              spaces >> eof >> pure (SessionsSelect              $ SessionIdentifier i)
       ]
     transports :: Parser Request
-    transports = spaces >> choice
-      [ eof >> pure TransportsStatus
-      , try $ string "start"  >> spaces >> eof >> pure TransportsStart
-      , try $ string "stop"   >> spaces >> eof >> pure TransportsStop
+    transports = choice
+      [ try $ space >> spaces >> string "start"         >> spaces >> eof >> pure TransportsStart
+      , try $ space >> spaces >> string "stop"          >> spaces >> eof >> pure TransportsStop
+      , try $                                              spaces >> eof >> pure TransportsStatus
       ]

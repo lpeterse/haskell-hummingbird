@@ -1,12 +1,36 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase       #-}
-module Hummingbird.Broker where
+module Hummingbird.Broker
+  ( HummingbirdBroker (..)
+  , withBrokerFromSettingsPath
+  -- * Authenticator operations
+  , restartAuthenticator
+  -- * Config operations
+  , getConfig
+  , reloadConfig
+  -- * Transport thread operations
+  , startTransports
+  , stopTransports
+  , statusTransports
+  -- * Misc
+  , Status (..)
+  ) where
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Main
+-- Copyright   :  (c) Lars Petersen 2017
+-- License     :  MIT
+--
+-- Maintainer  :  info@lars-petersen.net
+-- Stability   :  experimental
+--------------------------------------------------------------------------------
 
 import           Control.Concurrent
 import           Control.Concurrent.Async
 import           Control.Exception
 import           Control.Monad
 import           Data.Aeson
+import           Data.Version
 import           System.Exit
 import           System.IO
 import qualified System.Log.Formatter               as LOG
@@ -20,13 +44,14 @@ import           Network.MQTT.Broker.Authentication (Authenticator,
                                                      AuthenticatorConfig)
 import qualified Network.MQTT.Broker.Authentication as Authentication
 
-import           Hummingbird.Administration.Sys
+import           Hummingbird.Administration.SysInfo
 import           Hummingbird.Configuration
 import           Hummingbird.Transport
 
 data HummingbirdBroker auth
    = HummingbirdBroker
-   { humSettingsPath  :: FilePath
+   { humVersion       :: Version
+   , humSettingsPath  :: FilePath
    , humBroker        :: Broker.Broker auth
    , humConfig        :: MVar (Config auth)
    , humAuthenticator :: MVar auth
@@ -35,13 +60,15 @@ data HummingbirdBroker auth
    , humSysInfo       :: MVar (Async ()) -- ^ Sys info publishing thread
    }
 
+-- | The status of a worker thread.
 data Status
    = Running
    | Stopped
    | StoppedWithException SomeException
 
-withBrokerFromSettingsPath :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => FilePath -> (HummingbirdBroker auth -> IO ()) -> IO ()
-withBrokerFromSettingsPath settingsPath f = do
+-- | Create a new broker an execute the handler function in the current thread.
+withBrokerFromSettingsPath :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Version -> FilePath -> (HummingbirdBroker auth -> IO ()) -> IO ()
+withBrokerFromSettingsPath version settingsPath f = do
   -- Load the config from file.
   config <- loadConfigFromFile settingsPath >>= \case
       Left e       -> hPutStrLn stderr e >> exitFailure
@@ -59,8 +86,6 @@ withBrokerFromSettingsPath settingsPath f = do
       LOG.updateGlobalLogger LOG.rootLoggerName (LOG.addHandler h)
   LOG.infoM "hummingbird" "Started hummingbird MQTT message broker."
 
-  authenticator <- Authentication.newAuthenticator (auth config)
-
   mconfig        <- newMVar config
   mauthenticator <- newMVar =<< Authentication.newAuthenticator (auth config)
 
@@ -68,10 +93,11 @@ withBrokerFromSettingsPath settingsPath f = do
 
   mtransports    <- newMVar =<< async (runTransports broker $ transports config)
   mterminator    <- newMVar =<< async (runTerminator broker)
-  msysinfo       <- newMVar =<< async (sysInfoPublisher broker)
+  msysinfo       <- newMVar =<< async (runSysInfo broker)
 
   f HummingbirdBroker {
-     humSettingsPath  = settingsPath
+     humVersion       = version
+   , humSettingsPath  = settingsPath
    , humBroker        = broker
    , humConfig        = mconfig
    , humAuthenticator = mauthenticator
@@ -83,7 +109,7 @@ withBrokerFromSettingsPath settingsPath f = do
   where
     runTerminator broker = forever $ do
       Broker.terminateExpiredSessions broker
-      threadDelay 1000000
+      threadDelay 10000000
 
 getConfig :: HummingbirdBroker auth -> IO (Config auth)
 getConfig hum = readMVar (humConfig hum)
@@ -100,18 +126,6 @@ restartAuthenticator hum = do
   authenticator <- Authentication.newAuthenticator (auth config)
   void $ swapMVar (humAuthenticator hum) authenticator
 
-getTransportsStatus :: HummingbirdBroker auth -> IO Status
-getTransportsStatus hum =
-  withMVar (humTransport hum) $ poll >=> \case
-    Nothing -> pure Running
-    Just x  -> case x of
-      Right () -> pure Stopped
-      Left  e  -> pure (StoppedWithException e)
-
-stopTransports :: HummingbirdBroker auth -> IO ()
-stopTransports hum =
-  withMVar (humTransport hum) cancel
-
 startTransports :: Authenticator auth => HummingbirdBroker auth -> IO ()
 startTransports hum =
   modifyMVar_ (humTransport hum) $ \asnc->
@@ -121,3 +135,16 @@ startTransports hum =
       Just _  -> do
         config <- readMVar (humConfig hum)
         async $ runTransports (humBroker hum) (transports config)
+
+stopTransports :: HummingbirdBroker auth -> IO ()
+stopTransports hum =
+  withMVar (humTransport hum) cancel
+
+statusTransports :: HummingbirdBroker auth -> IO Status
+statusTransports hum =
+  withMVar (humTransport hum) $ poll >=> \case
+    Nothing -> pure Running
+    Just x  -> case x of
+      Right () -> pure Stopped
+      Left  e  -> pure (StoppedWithException e)
+

@@ -1,8 +1,17 @@
 module Hummingbird.Transport ( runTransports ) where
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Main
+-- Copyright   :  (c) Lars Petersen 2017
+-- License     :  MIT
+--
+-- Maintainer  :  info@lars-petersen.net
+-- Stability   :  experimental
+--------------------------------------------------------------------------------
 
 import           Control.Concurrent.Async
-import           Control.Monad
 import           Control.Exception
+import           Control.Monad
 import           Data.Default
 import qualified Data.Text                          as T
 import qualified Data.Text.Encoding                 as T
@@ -10,11 +19,12 @@ import qualified Data.X509.CertificateStore         as X509
 import qualified Network.Stack.Server               as SS
 import qualified Network.TLS                        as TLS
 import qualified Network.TLS.Extra.Cipher           as TLS
+import qualified Network.WebSockets                 as WS
+import qualified System.Log.Logger                  as LOG
 import qualified System.Socket                      as S
 import qualified System.Socket.Family.Inet          as S
 import qualified System.Socket.Protocol.Default     as S
 import qualified System.Socket.Type.Stream          as S
-import qualified System.Log.Logger                  as LOG
 
 import qualified Network.MQTT.Broker                as Broker
 import           Network.MQTT.Broker.Authentication
@@ -43,19 +53,27 @@ runTransport broker transportConfig = case transportConfig of
         Server.mqttTransportConfig = cfg
       }
     runServerStack mqttConfig broker
-  WebSocketTransport socketConfig@SocketTransport {} -> do
-    cfg <- createSocketConfig socketConfig
+  WebSocketTransport { wsTransport = tc@SocketTransport {}, wsFramePayloadSizeLimit = fpsl, wsMessageDataSizeLimit = mdsl } -> do
+    cfg <- createSocketConfig tc
     let mqttConfig = Server.MqttServerConfig {
       Server.mqttTransportConfig = SS.WebSocketServerConfig {
         SS.wsTransportConfig = cfg
+      , SS.wsConnectionOptions = WS.defaultConnectionOptions {
+          WS.connectionFramePayloadSizeLimit = WS.SizeLimit fpsl
+        , WS.connectionMessageDataSizeLimit = WS.SizeLimit mdsl
+        }
       }
     }
     runServerStack mqttConfig broker
-  WebSocketTransport tlsConfig@TlsTransport {} -> do
-    cfg <- createSecureSocketConfig tlsConfig
+  WebSocketTransport { wsTransport = tc@TlsTransport {}, wsFramePayloadSizeLimit = fpsl, wsMessageDataSizeLimit = mdsl } -> do
+    cfg <- createSecureSocketConfig tc
     let mqttConfig = Server.MqttServerConfig {
       Server.mqttTransportConfig = SS.WebSocketServerConfig {
         SS.wsTransportConfig = cfg
+      , SS.wsConnectionOptions = WS.defaultConnectionOptions {
+          WS.connectionFramePayloadSizeLimit = WS.SizeLimit fpsl
+        , WS.connectionMessageDataSizeLimit = WS.SizeLimit mdsl
+        }
       }
     }
     runServerStack mqttConfig broker

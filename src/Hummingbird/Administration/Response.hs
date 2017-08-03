@@ -1,5 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Hummingbird.Administration.Response where
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Main
+-- Copyright   :  (c) Lars Petersen 2017
+-- License     :  MIT
+--
+-- Maintainer  :  info@lars-petersen.net
+-- Stability   :  experimental
+--------------------------------------------------------------------------------
 
 import           Control.Monad
 import           Control.Monad.IO.Class
@@ -8,6 +17,7 @@ import           Data.Int
 import           Data.Maybe
 import           Data.UUID                          (UUID)
 import qualified Data.UUID                          as UUID
+import           Data.Version                       (Version, showVersion)
 import           GHC.Generics                       (Generic)
 import           Network.MQTT.Broker.Authentication (Principal (..), Quota (..))
 import           Network.MQTT.Broker.Session        (ConnectionState (..),
@@ -21,6 +31,7 @@ import           Network.MQTT.Broker.Session        (ConnectionState (..),
 import           Network.MQTT.Message               (ClientIdentifier (..),
                                                      Username (..))
 import qualified Network.MQTT.Trie                  as Trie
+
 import           System.Clock
 
 import           Hummingbird.Administration.Escape
@@ -33,7 +44,8 @@ data Response
    { authLastException         :: Maybe String
    }
    | BrokerInfo
-   { brokerUptime              :: Int64
+   { brokerVersion             :: Version
+   , brokerUptime              :: Int64
    , brokerSessionCount        :: Int
    , brokerSubscriptionCount   :: Int
    , brokerTransportException  :: Maybe String
@@ -79,13 +91,12 @@ render p Help = do
     p "    disconnect            : disconnect associated client (if any)"
     p "    subscriptions         : show session subscriptions"
     p "    terminate             : terminate session (and disconnect client)"
-    p "  expiring                : show sessions in order of expiration"
     p "transports                : show status of transports"
     p "  start                   : start transports"
     p "  stop                    : stop transports"
 
 render p info@BrokerInfo {} = do
---  format "Version            " $ brokerVersion info
+  format "Version              " $ showVersion $ brokerVersion info
   format "Uptime               " $ ago (brokerUptime info)
   format "Sessions             " $ show (brokerSessionCount info)
   format "Subscriptions        " $ show (brokerSubscriptionCount info)
