@@ -25,17 +25,18 @@ source-repository head
 library
   ghc-options:          -Wall -fno-warn-orphans
   exposed-modules:      Hummingbird
-                      , Hummingbird.Administration.CLI
                       , Hummingbird.Administration.Escape
                       , Hummingbird.Administration.Request
                       , Hummingbird.Administration.Response
                       , Hummingbird.Administration.Server
-                      , Hummingbird.Administration.SysInfo
-                      , Hummingbird.Broker
                       , Hummingbird.Configuration
-                      , Hummingbird.SimpleAuthenticator
-                      , Hummingbird.Transport
+                      , Hummingbird.Internal
+                      , Hummingbird.Logging
                       , Hummingbird.Prometheus
+                      , Hummingbird.SimpleAuthenticator
+                      , Hummingbird.SysInfo
+                      , Hummingbird.Terminator
+                      , Hummingbird.Transport
   build-depends:        base
                       , aeson >= 1.1.0.0
                       , async
@@ -48,7 +49,6 @@ library
                       , data-default
                       , data-default-class
                       , filepath
-                      , haskeline
                       , hslogger
                       , mqtt
                       , options
@@ -57,7 +57,6 @@ library
                       , socket-unix
                       , text
                       , tls
-                      , transformers
                       , unix
                       , unordered-containers
                       , uuid
@@ -95,6 +94,8 @@ executable hummingbird-cli
     , socket-unix
     , text
     , unix
+    , haskeline
+    , transformers
   ghc-options:      -rtsopts -Wall -O2 -threaded -fprof-auto
   default-language: Haskell2010
   hs-source-dirs:   app

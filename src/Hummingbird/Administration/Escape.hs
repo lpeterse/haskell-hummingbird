@@ -1,7 +1,7 @@
 module Hummingbird.Administration.Escape where
 --------------------------------------------------------------------------------
 -- |
--- Module      :  Main
+-- Module      :  Hummingbird.Administration.Escape
 -- Copyright   :  (c) Lars Petersen 2017
 -- License     :  MIT
 --

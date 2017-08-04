@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase       #-}
-module Hummingbird.Administration.Server ( runServerInterface ) where
+module Hummingbird.Administration.Server ( run ) where
 --------------------------------------------------------------------------------
 -- |
--- Module      :  Main
+-- Module      :  Hummingbird.Administration.Server
 -- Copyright   :  (c) Lars Petersen 2017
 -- License     :  MIT
 --
@@ -24,7 +24,6 @@ import           Data.Bits
 import qualified Data.ByteString                     as BS
 import qualified Data.IntMap                         as IM
 import qualified Data.IntSet                         as IS
-import           Data.Proxy
 import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
 import           System.Exit
@@ -46,13 +45,13 @@ import qualified Network.MQTT.Trie                   as R
 
 import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
-import           Hummingbird.Broker
 import qualified Hummingbird.Configuration           as C
+import           Hummingbird.Internal
 
-runServerInterface :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Proxy (C.Config auth) -> HummingbirdBroker auth -> IO a
-runServerInterface authProxy hum = do
+run :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Hummingbird auth -> IO a
+run hum = do
     config <- getConfig hum
-    let path = C.adminSocketPath $ C.admin (config `asProxyTypeOf` authProxy)
+    let path = C.adminSocketPath $ C.admin config
     let directory = FilePath.takeDirectory path
     -- Check parent directory permissions. The parent directory must only be
     -- accessible by owner and group.
@@ -125,7 +124,7 @@ runServerInterface authProxy hum = do
     sendMessage sock msg =
       void $ S.sendAllBuilder sock 4096 (B.execPut $ B.put msg) mempty
 
-process :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Request.Request -> HummingbirdBroker auth -> IO Response.Response
+process :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Request.Request -> Hummingbird auth -> IO Response.Response
 process Request.Help _ =
   pure Response.Help
 

@@ -2,7 +2,7 @@
 module Hummingbird.Administration.Response where
 --------------------------------------------------------------------------------
 -- |
--- Module      :  Main
+-- Module      :  Hummingbird.Administration.Response
 -- Copyright   :  (c) Lars Petersen 2017
 -- License     :  MIT
 --

@@ -4,7 +4,7 @@
 module Hummingbird.SimpleAuthenticator where
 --------------------------------------------------------------------------------
 -- |
--- Module      :  Main
+-- Module      :  Hummingbird.SimpleAuthenticator
 -- Copyright   :  (c) Lars Petersen 2017
 -- License     :  MIT
 --

@@ -2,7 +2,7 @@
 module Hummingbird.Prometheus where
 --------------------------------------------------------------------------------
 -- |
--- Module      :  Main
+-- Module      :  Hummingbird.Prometheus
 -- Copyright   :  (c) Lars Petersen 2017
 -- License     :  MIT
 --

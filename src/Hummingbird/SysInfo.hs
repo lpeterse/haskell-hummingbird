@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Hummingbird.Administration.SysInfo
-  ( runSysInfo
+module Hummingbird.SysInfo
+  ( run
   ) where
 --------------------------------------------------------------------------------
 -- |
@@ -20,8 +20,8 @@ import qualified System.Clock         as Clock
 import qualified Network.MQTT.Broker  as Broker
 import           Network.MQTT.Message (Message (..), QoS (..), Retain (..))
 
-runSysInfo :: Broker.Broker auth -> IO ()
-runSysInfo broker = forM_ [0..] $ \uptime-> do
+run :: Broker.Broker auth -> IO ()
+run broker = forM_ [0..] $ \uptime-> do
   threadDelay 1000000
   time <- Clock.sec <$> Clock.getTime Clock.Realtime
   Broker.publishUpstream broker (uptimeMsg (uptime :: Int))

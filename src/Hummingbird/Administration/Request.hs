@@ -2,7 +2,7 @@
 module Hummingbird.Administration.Request where
 --------------------------------------------------------------------------------
 -- |
--- Module      :  Main
+-- Module      :  Hummingbird.Administration.Request
 -- Copyright   :  (c) Lars Petersen 2017
 -- License     :  MIT
 --

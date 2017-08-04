@@ -1,11 +1,13 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE ExplicitForAll      #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies        #-}
 module Hummingbird ( run ) where
 --------------------------------------------------------------------------------
 -- |
--- Module      :  Main
+-- Module      :  Hummingbird
 -- Copyright   :  (c) Lars Petersen 2017
 -- License     :  MIT
 --
@@ -21,9 +23,9 @@ import           Options
 import           Network.MQTT.Broker.Authentication (Authenticator,
                                                      AuthenticatorConfig)
 
-import qualified Hummingbird.Administration.Server  as Admin
-import qualified Hummingbird.Broker                 as Broker
+import qualified Hummingbird.Administration.Server  as Administration
 import qualified Hummingbird.Configuration          as Config
+import qualified Hummingbird.Internal               as Hummingbird
 
 newtype MainOptions = MainOptions
   { mainSettingsFilePath :: FilePath }
@@ -32,10 +34,9 @@ instance Options MainOptions where
   defineOptions = MainOptions
     <$> simpleOption "settings" "/etc/hummingbird/settings.yml" "Path to the .yml settings file"
 
-run :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Version -> Proxy (Config.Config auth) -> IO ()
+run :: forall auth. (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Version -> Proxy (Config.Config auth) -> IO ()
 run version authConfigProxy =
-  runCommand $ \mainOpts _args->
-    Broker.withBrokerFromSettingsPath
-      version
-      ( mainSettingsFilePath mainOpts )
-      ( Admin.runServerInterface authConfigProxy )
+  runCommand $ \mainOpts _args-> do
+    hum <- Hummingbird.new version ( mainSettingsFilePath mainOpts ) :: IO (Hummingbird.Hummingbird auth)
+    Hummingbird.start hum
+    Administration.run hum

@@ -1,7 +1,8 @@
-module Hummingbird.Transport ( runTransports ) where
+{-# LANGUAGE OverloadedStrings #-}
+module Hummingbird.Transport ( run, Config (..) ) where
 --------------------------------------------------------------------------------
 -- |
--- Module      :  Main
+-- Module      :  Hummingbird.Transport
 -- Copyright   :  (c) Lars Petersen 2017
 -- License     :  MIT
 --
@@ -12,9 +13,13 @@ module Hummingbird.Transport ( runTransports ) where
 import           Control.Concurrent.Async
 import           Control.Exception
 import           Control.Monad
+import           Data.Aeson
+import           Data.Aeson.Types
 import           Data.Default
+import           Data.Int
 import qualified Data.Text                          as T
 import qualified Data.Text.Encoding                 as T
+import           Data.Word
 import qualified Data.X509.CertificateStore         as X509
 import qualified Network.Stack.Server               as SS
 import qualified Network.TLS                        as TLS
@@ -30,16 +35,14 @@ import qualified Network.MQTT.Broker                as Broker
 import           Network.MQTT.Broker.Authentication
 import qualified Network.MQTT.Broker.Server         as Server
 
-import           Hummingbird.Configuration
-
-runTransports :: Authenticator auth => Broker.Broker auth -> [ TransportConfig ] -> IO ()
-runTransports broker transportConfigs =
+run :: Authenticator auth => Broker.Broker auth -> [ Config ] -> IO ()
+run broker transportConfigs =
   void $ forConcurrently transportConfigs (runTransport broker)
     `catch` \e-> do
       LOG.errorM "transports" $ "Transports thread died: " ++ show (e :: SomeException)
       throwIO e
 
-runTransport :: Authenticator auth => Broker.Broker auth -> TransportConfig -> IO ()
+runTransport :: Authenticator auth => Broker.Broker auth -> Config -> IO ()
 runTransport broker transportConfig = case transportConfig of
   SocketTransport {} -> do
     cfg <- createSocketConfig transportConfig
@@ -79,7 +82,7 @@ runTransport broker transportConfig = case transportConfig of
     runServerStack mqttConfig broker
   _ -> error "Server stack not implemented."
   where
-    createSocketConfig :: TransportConfig -> IO (SS.ServerConfig (S.Socket S.Inet S.Stream S.Default))
+    createSocketConfig :: Config -> IO (SS.ServerConfig (S.Socket S.Inet S.Stream S.Default))
     createSocketConfig (SocketTransport a p b) = do
       (addrinfo:_) <- S.getAddressInfo (Just $ T.encodeUtf8 a) (Just $ T.encodeUtf8 $ T.pack $ show p) (mconcat [S.aiNumericHost, S.aiNumericService]) :: IO [S.AddressInfo S.Inet S.Stream S.Default]
       pure SS.SocketServerConfig {
@@ -87,7 +90,7 @@ runTransport broker transportConfig = case transportConfig of
           , SS.socketServerConfigListenQueueSize = b
         }
     createSocketConfig _ = error "not a socket config"
-    createSecureSocketConfig :: TransportConfig -> IO (SS.ServerConfig (SS.TLS (S.Socket S.Inet S.Stream S.Default)))
+    createSecureSocketConfig :: Config -> IO (SS.ServerConfig (SS.TLS (S.Socket S.Inet S.Stream S.Default)))
     createSecureSocketConfig (TlsTransport tc cc ca crt key) = do
       mcs <- X509.readCertificateStore ca
       case mcs of
@@ -127,3 +130,48 @@ runServerStack :: (Authenticator auth, SS.StreamServerStack transport, Server.Mq
 runServerStack serverConfig broker =
   SS.withServer serverConfig $ \server-> forever $ SS.withConnection server $ \connection info->
     Server.serveConnection broker connection info
+
+-------------------------------------------------------------------
+-- Configuration
+-------------------------------------------------------------------
+
+data Config
+   = SocketTransport
+     { bindAddress   :: T.Text
+     , bindPort      :: Word16
+     , listenBacklog :: Int
+     }
+   | WebSocketTransport
+     { wsTransport             :: Config
+     , wsFramePayloadSizeLimit :: Int64
+     , wsMessageDataSizeLimit  :: Int64
+     }
+   | TlsTransport
+     { tlsTransport      :: Config
+     , tlsWantClientCert :: Bool
+     , tlsCaFilePath     :: FilePath
+     , tlsCrtFilePath    :: FilePath
+     , tlsKeyFilePath    :: FilePath
+     }
+  deriving (Eq, Ord, Show)
+
+instance FromJSON Config where
+  parseJSON (Object v) = do
+    t <- v .: "type" :: Parser String
+    case t of
+      "websocket" -> WebSocketTransport
+        <$> v .: "transport"
+        <*> v .:? "framePayloadSizeLimit" .!= 65535
+        <*> v .:? "messageDataSizeLimit"  .!= 65535
+      "socket" -> SocketTransport
+        <$> v .: "bindAddress"
+        <*> v .: "bindPort"
+        <*> v .: "listenBacklog"
+      "tls" -> TlsTransport
+        <$> v .: "transport"
+        <*> v .: "wantClientCert"
+        <*> v .: "caFilePath"
+        <*> v .: "crtFilePath"
+        <*> v .: "keyFilePath"
+      _ -> fail "Expected 'socket', 'websocket' or 'tls'."
+  parseJSON invalid = typeMismatch "Config" invalid
