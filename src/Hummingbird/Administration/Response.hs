@@ -44,13 +44,14 @@ data Response
    { authLastException         :: Maybe String
    }
    | BrokerInfo
-   { brokerVersion             :: Version
-   , brokerUptime              :: Int64
-   , brokerSessionCount        :: Int
-   , brokerSubscriptionCount   :: Int
-   , brokerTransportException  :: Maybe String
-   , brokerTerminatorException :: Maybe String
-   , brokerSysInfoException    :: Maybe String
+   { brokerVersion                :: Version
+   , brokerUptime                 :: Int64
+   , brokerSessionCount           :: Int
+   , brokerSubscriptionCount      :: Int
+   , brokerTransportsThreadStatus :: ThreadStatus
+   , brokerTerminatorThreadStatus :: ThreadStatus
+   , brokerSysInfoThreadStatus    :: ThreadStatus
+   , brokerPrometheusThreadStatus :: ThreadStatus
    }
    | Session SessionInfo
    | SessionList [SessionInfo]
@@ -69,8 +70,20 @@ data SessionInfo
    }
    deriving (Eq, Show, Generic)
 
+data ThreadStatus
+   = Running
+   | Stopped
+   | StoppedWithException String
+   deriving (Eq, Show, Generic)
+
+instance B.Binary ThreadStatus
 instance B.Binary Response
 instance B.Binary SessionInfo
+
+formatThreadStatus :: ThreadStatus -> String
+formatThreadStatus Running                  = green "Running."
+formatThreadStatus Stopped                  = lightBlue "Stopped."
+formatThreadStatus (StoppedWithException e) = lightRed e
 
 render :: MonadIO m => (String -> m ()) -> Response -> m ()
 render p (Success msg) =
@@ -101,15 +114,10 @@ render p info@BrokerInfo {} = do
   format "Sessions             " $ show (brokerSessionCount info)
   format "Subscriptions        " $ show (brokerSubscriptionCount info)
   p $ cyan "Threads"
-  format "  Transports         " $ case brokerTransportException info of
-    Nothing -> green "Running."
-    Just e  -> lightRed e
-  format "  Terminator         " $ case brokerTerminatorException info of
-    Nothing -> green "Running."
-    Just e  -> lightRed e
-  format "  SysInfo            " $ case brokerSysInfoException info of
-    Nothing -> green "Running."
-    Just e  -> lightRed e
+  format "  Transports         " $ formatThreadStatus (brokerTransportsThreadStatus info)
+  format "  Terminator         " $ formatThreadStatus (brokerTerminatorThreadStatus info)
+  format "  SysInfo            " $ formatThreadStatus (brokerSysInfoThreadStatus info)
+  format "  Prometheus         " $ formatThreadStatus (brokerPrometheusThreadStatus info)
   where
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m"

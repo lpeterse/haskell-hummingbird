@@ -28,6 +28,8 @@ import qualified System.Log.Logger                  as Log
 import           Network.MQTT.Broker.Authentication
 import qualified Network.MQTT.Trie                  as R
 
+import qualified Hummingbird.Prometheus             as Prometheus
+
 loadConfigFromFile :: (FromJSON (AuthenticatorConfig auth)) => FilePath -> IO (Either String (Config auth))
 loadConfigFromFile path = do
   ec <- Yaml.decodeFileEither path
@@ -41,6 +43,7 @@ data Config auth
    , admin      :: AdminConfig
    , transports :: [ TransportConfig  ]
    , logging    :: LogConfig
+   , prometheus :: Maybe Prometheus.Config
    }
 
 instance Show (Config auth) where
@@ -123,6 +126,7 @@ instance (FromJSON (AuthenticatorConfig auth)) => FromJSON (Config auth) where
     <*> v .: "admin"
     <*> v .: "transports"
     <*> v .: "logging"
+    <*> v .:? "prometheus"
   parseJSON invalid = typeMismatch "Config" invalid
 
 instance FromJSON LogConfig where

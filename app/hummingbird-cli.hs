@@ -20,7 +20,6 @@ import qualified Data.ByteString                     as BS
 import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
 import           Options
-import           System.Environment
 import           System.Exit
 import           System.IO                           (hPutStrLn, stderr)
 import qualified System.Posix.Files                  as Files
@@ -42,8 +41,8 @@ main =
     if interactive opts
       then CLI.runCommandLineInterface socketPath
       else case Request.parse (cmd opts) of
-        Right cmd -> Response.render putStrLn =<< execRequest socketPath cmd
-        Left e    -> hPutStrLn stderr e >> exitFailure
+        Right c -> Response.render putStrLn =<< execRequest socketPath c
+        Left  e -> hPutStrLn stderr e >> exitFailure
 
   where
     potentialSocketLocations :: [FilePath]

@@ -135,9 +135,14 @@ process Request.Broker broker =
   <*> Broker.getUptime (humBroker broker)
   <*> (IM.size <$> Broker.getSessions (humBroker broker))
   <*> (R.foldl' (\acc set-> acc + IS.size set) 0 <$> Broker.getSubscriptions (humBroker broker))
-  <*> ((show <$>) <$> (poll =<< readMVar (humTransport  broker)))
-  <*> ((show <$>) <$> (poll =<< readMVar (humTerminator broker)))
-  <*> ((show <$>) <$> (poll =<< readMVar (humSysInfo    broker)))
+  <*> (status <$> (poll =<< readMVar (humTransport  broker)))
+  <*> (status <$> (poll =<< readMVar (humTerminator broker)))
+  <*> (status <$> (poll =<< readMVar (humSysInfo    broker)))
+  <*> (status <$> (poll =<< readMVar (humPrometheus broker)))
+  where
+    status Nothing           = Response.Running
+    status (Just (Right ())) = Response.Stopped
+    status (Just (Left e))   = Response.StoppedWithException (show e)
 
 process Request.Auth broker = do
   authenticator <- readMVar (humAuthenticator broker)

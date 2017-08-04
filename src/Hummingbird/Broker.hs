@@ -46,6 +46,7 @@ import qualified Network.MQTT.Broker.Authentication as Authentication
 
 import           Hummingbird.Administration.SysInfo
 import           Hummingbird.Configuration
+import qualified Hummingbird.Prometheus             as Prometheus
 import           Hummingbird.Transport
 
 data HummingbirdBroker auth
@@ -58,6 +59,7 @@ data HummingbirdBroker auth
    , humTransport     :: MVar (Async ())
    , humTerminator    :: MVar (Async ()) -- ^ Session termination thread
    , humSysInfo       :: MVar (Async ()) -- ^ Sys info publishing thread
+   , humPrometheus    :: MVar (Async ()) -- ^ Prometheus service thread
    }
 
 -- | The status of a worker thread.
@@ -94,6 +96,7 @@ withBrokerFromSettingsPath version settingsPath f = do
   mtransports    <- newMVar =<< async (runTransports broker $ transports config)
   mterminator    <- newMVar =<< async (runTerminator broker)
   msysinfo       <- newMVar =<< async (runSysInfo broker)
+  mprometheus    <- newMVar =<< async (Prometheus.run $ prometheus config)
 
   f HummingbirdBroker {
      humVersion       = version
@@ -104,6 +107,7 @@ withBrokerFromSettingsPath version settingsPath f = do
    , humTransport     = mtransports
    , humTerminator    = mterminator
    , humSysInfo       = msysinfo
+   , humPrometheus    = mprometheus
    }
 
   where
@@ -147,4 +151,3 @@ statusTransports hum =
     Just x  -> case x of
       Right () -> pure Stopped
       Left  e  -> pure (StoppedWithException e)
-

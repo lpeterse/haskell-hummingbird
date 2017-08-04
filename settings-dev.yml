@@ -38,6 +38,10 @@ transports:
 #    crtFilePath: cert.crt
 #    keyFilePath: cert.pem
 
+prometheus:
+  bindAddress: "*"
+  bindPort: 9001
+
 logging:
   level: DEBUG
   appenders:

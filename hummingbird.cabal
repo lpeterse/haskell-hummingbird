@@ -35,6 +35,7 @@ library
                       , Hummingbird.Configuration
                       , Hummingbird.SimpleAuthenticator
                       , Hummingbird.Transport
+                      , Hummingbird.Prometheus
   build-depends:        base
                       , aeson >= 1.1.0.0
                       , async
@@ -64,6 +65,10 @@ library
                       , x509
                       , x509-store
                       , yaml
+                      , prometheus-client
+                      , prometheus-metrics-ghc
+                      , wai-middleware-prometheus
+                      , warp
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -72,7 +77,7 @@ executable hummingbird-broker
     base,
     mqtt,
     hummingbird
-  ghc-options:      -rtsopts -Wall -O2 -threaded -fprof-auto
+  ghc-options:      -rtsopts -Wall -O2 -threaded -fprof-auto -with-rtsopts=-T
   default-language: Haskell2010
   hs-source-dirs:   app
   main-is:          hummingbird-broker.hs
