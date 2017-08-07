@@ -7,9 +7,7 @@ packages:
       commit: 0dc6532f4d720c619c8151035caf11b1f676c437
 extra-deps:
   - mqtt-0.3.0.0
-  - socket-0.8.0.1
   - socket-unix-0.2.0.0
   - websockets-0.12.1.0
-  - aeson-1.1.0.0
 flags: {}
 extra-package-dbs: []

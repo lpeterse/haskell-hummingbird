@@ -26,7 +26,6 @@ import           Options
 import qualified System.Console.Haskeline            as H
 import           System.Exit
 import           System.IO                           (hPutStrLn, stderr)
-import qualified System.Posix.Files                  as Files
 import qualified System.Socket                       as S
 import qualified System.Socket.Family.Unix           as S
 import qualified System.Socket.Protocol.Default      as S
@@ -65,7 +64,7 @@ runInteractive opts = H.runInputT H.defaultSettings $ do
   H.outputStrLn ""
   let loop = H.withInterrupt $ fix $ \continue->
         (Request.parse . fromMaybe "" <$> H.getInputLine prompt) >>= \case
-          Left e ->
+          Left _ ->
             pure ()
           Right Request.Quit ->
             pure ()

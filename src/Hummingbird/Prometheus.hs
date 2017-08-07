@@ -14,7 +14,6 @@ import           Control.Monad                     (void)
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.String
-import qualified Data.Yaml                         as Yaml
 import qualified Network.Wai.Handler.Warp          as Warp
 import qualified Network.Wai.Middleware.Prometheus as Prometheus
 import qualified Prometheus
