@@ -35,7 +35,7 @@ instance Options MainOptions where
     <$> simpleOption "settings" "/etc/hummingbird/settings.yml" "Path to the .yml settings file"
 
 run :: forall auth. (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Version -> Proxy (Config.Config auth) -> IO ()
-run version authConfigProxy =
+run version _ =
   runCommand $ \mainOpts _args-> do
     hum <- Hummingbird.new version ( mainSettingsFilePath mainOpts ) :: IO (Hummingbird.Hummingbird auth)
     Hummingbird.start hum
