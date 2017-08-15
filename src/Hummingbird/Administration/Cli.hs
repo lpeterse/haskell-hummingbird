@@ -9,7 +9,7 @@
 -- Maintainer  :  github@sebastian-clausen.de
 -- Stability   :  experimental
 --------------------------------------------------------------------------------
-module Main where
+module Hummingbird.Administration.Cli where
 
 import           Control.Exception                   (bracket)
 import           Control.Monad                       (void)
@@ -35,28 +35,27 @@ import           Hummingbird.Administration.Escape
 import qualified Hummingbird.Administration.Request  as Request
 import qualified Hummingbird.Administration.Response as Response
 
-data MainOptions = MainOptions
+data CliOptions = CliOptions
   { interactive :: Bool
   , command     :: String
   , socket      :: FilePath
   }
 
-instance Options MainOptions where
-  defineOptions = MainOptions
+instance Options CliOptions where
+  defineOptions = CliOptions
     <$> simpleOption "interactive" True "Start an interactive command line interpreter."
     <*> simpleOption "command" "help" "The command to execute (only when non-interactive)."
     <*> simpleOption "socket" "/run/hummingbird/S.hummingbird-admin" "The brokers local domain socket for administration."
 
 -- | Execute a command using a local unix domain socket
 --   served by a running hummingbird broker.
-main :: IO ()
-main =
-  runCommand $ \opts _args->
+run :: mainOptions -> CliOptions -> [String] -> IO ()
+run _ opts _ =
     if interactive opts
       then runInteractive opts
       else runNonInteractive opts
 
-runInteractive :: MainOptions -> IO ()
+runInteractive :: CliOptions -> IO ()
 runInteractive opts = H.runInputT H.defaultSettings $ do
   H.outputStrLn banner
   H.outputStrLn ""
@@ -95,7 +94,7 @@ runInteractive opts = H.runInputT H.defaultSettings $ do
               B.Done _ _ msg -> pure msg
               B.Fail _ _ failure -> error failure
 
-runNonInteractive :: MainOptions -> IO ()
+runNonInteractive :: CliOptions -> IO ()
 runNonInteractive opts =
   case Request.parse (command opts) of
     Right c -> Response.render putStrLn =<< execRequest c

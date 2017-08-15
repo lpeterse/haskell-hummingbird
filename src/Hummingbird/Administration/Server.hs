@@ -15,7 +15,8 @@ import           Control.Concurrent.Async
 import           Control.Concurrent.MVar
 import           Control.Exception                   (SomeException, bracket,
                                                       catch, try)
-import           Control.Monad                       (forever, void, when)
+import           Control.Monad                       (forever, void, when,
+                                                      (>=>))
 import           Data.Aeson                          (FromJSON)
 import qualified Data.Binary                         as B
 import qualified Data.Binary.Get                     as B
@@ -84,8 +85,7 @@ run hum = do
           -- all synchronous exceptions and restart the handler, but stop as soon
           -- as the thread receives any async exception. The only way to do it is
           -- by creating another worker thread.
-          forever $ withAsync (acceptAndHandle server) $ \handler->
-            waitCatch handler >>= \case
+          forever $ withAsync (acceptAndHandle server) $ waitCatch >=> \case
               Left e   -> LOG.warningM "Administration" $ "Connection terminated with " ++ show (e :: SomeException)
               Right () -> LOG.infoM "Administration" "Administrator disconnected."
         )
@@ -130,7 +130,7 @@ process Request.Help _ =
 
 process Request.Broker broker =
   Response.BrokerInfo
-  <$> pure (humVersion broker)
+  <$> pure (versionName $ humSettings broker)
   <*> Broker.getUptime (humBroker broker)
   <*> (IM.size <$> Broker.getSessions (humBroker broker))
   <*> (R.foldl' (\acc set-> acc + IS.size set) 0 <$> Broker.getSubscriptions (humBroker broker))

@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase       #-}
 module Hummingbird.Internal
   ( Hummingbird (..)
+  , Settings (..)
   , new
   , start
   , stop
@@ -32,7 +33,6 @@ import           Control.Concurrent.Async
 import           Control.Exception
 import           Control.Monad
 import           Data.Aeson
-import           Data.Version
 import           System.Exit
 import           System.IO
 
@@ -51,8 +51,7 @@ import qualified Hummingbird.Transport              as Transport
 
 data Hummingbird auth
    = Hummingbird
-   { humVersion       :: Version
-   , humSettingsPath  :: FilePath
+   { humSettings      :: Settings auth
    , humBroker        :: Broker.Broker auth
    , humConfig        :: MVar (Config auth)
    , humAuthenticator :: MVar auth
@@ -64,15 +63,22 @@ data Hummingbird auth
 
 -- | The status of a worker thread.
 data Status
-   = Running
-   | Stopped
-   | StoppedWithException SomeException
+  = Running
+  | Stopped
+  | StoppedWithException SomeException
+  deriving (Show)
+
+data Settings auth
+  = Settings
+  { versionName    :: String
+  , configFilePath :: FilePath
+  } deriving (Show)
 
 -- | Create a new broker and execute the handler function in the current thread.
-new :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Version -> FilePath -> IO (Hummingbird auth)
-new version settingsPath = do
+new :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Settings auth -> IO (Hummingbird auth)
+new settings = do
   -- Load the config from file.
-  config <- loadConfigFromFile settingsPath >>= \case
+  config <- loadConfigFromFile (configFilePath settings) >>= \case
       Left e       -> hPutStrLn stderr e >> exitFailure
       Right config -> pure config
 
@@ -89,8 +95,7 @@ new version settingsPath = do
   mprometheus    <- newMVar =<< async (Prometheus.run $ prometheus config)
 
   pure Hummingbird {
-     humVersion       = version
-   , humSettingsPath  = settingsPath
+     humSettings      = settings
    , humBroker        = broker
    , humConfig        = mconfig
    , humAuthenticator = mauthenticator
@@ -145,7 +150,7 @@ getConfig hum =
 reloadConfig :: (FromJSON (AuthenticatorConfig auth)) => Hummingbird auth -> IO (Either String (Config auth))
 reloadConfig hum =
   modifyMVar (humConfig hum) $ \config->
-    loadConfigFromFile (humSettingsPath hum) >>= \case
+    loadConfigFromFile (configFilePath $ humSettings hum) >>= \case
       Left  e -> pure (config, Left e)
       Right config' -> pure (config', Right config')
 

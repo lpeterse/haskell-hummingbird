@@ -17,7 +17,6 @@ import           Data.Int
 import           Data.Maybe
 import           Data.UUID                          (UUID)
 import qualified Data.UUID                          as UUID
-import           Data.Version                       (Version, showVersion)
 import           GHC.Generics                       (Generic)
 import           Network.MQTT.Broker.Authentication (Principal (..), Quota (..))
 import           Network.MQTT.Broker.Session        (ConnectionState (..),
@@ -44,7 +43,7 @@ data Response
    { authLastException         :: Maybe String
    }
    | BrokerInfo
-   { brokerVersion                :: Version
+   { brokerVersion                :: String
    , brokerUptime                 :: Int64
    , brokerSessionCount           :: Int
    , brokerSubscriptionCount      :: Int
@@ -109,7 +108,7 @@ render p Help = do
     p "  stop                    : stop transports"
 
 render p info@BrokerInfo {} = do
-  format "Version              " $ showVersion $ brokerVersion info
+  format "Version              " $ brokerVersion info
   format "Uptime               " $ ago (brokerUptime info)
   format "Sessions             " $ show (brokerSessionCount info)
   format "Subscriptions        " $ show (brokerSubscriptionCount info)

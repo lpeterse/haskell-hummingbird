@@ -9,13 +9,18 @@
 --------------------------------------------------------------------------------
 module Main where
 
-import           Data.Proxy
+import           Data.Version                    (showVersion)
 
-import qualified Hummingbird
+import           Hummingbird
 import           Hummingbird.Configuration
 import           Hummingbird.SimpleAuthenticator
 
 import           Paths_hummingbird               (version)
 
 main :: IO ()
-main = Hummingbird.run version (Proxy :: Proxy (Config SimpleAuthenticator) )
+main =
+  runWithVendorSettings settings
+  where
+    settings = VendorSettings {
+      vendorVersionName = showVersion version
+    } :: VendorSettings SimpleAuthenticator

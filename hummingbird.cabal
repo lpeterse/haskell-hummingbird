@@ -6,7 +6,7 @@ description:
 
   If this is not sufficient for your use case you might also consider to
   assemble your own broker (i.e. with a custom authentication mechanism).
-version:             0.2.0.0
+version:             0.3.0.0
 license:             MIT
 license-file:        LICENSE
 author:              Lars Petersen
@@ -25,6 +25,7 @@ source-repository head
 library
   ghc-options:          -Wall -fno-warn-orphans
   exposed-modules:      Hummingbird
+                      , Hummingbird.Administration.Cli
                       , Hummingbird.Administration.Escape
                       , Hummingbird.Administration.Request
                       , Hummingbird.Administration.Response
@@ -44,10 +45,12 @@ library
                       , bcrypt
                       , binary
                       , bytestring
+                      , transformers
                       , clock
                       , containers
                       , data-default
                       , data-default-class
+                      , haskeline
                       , filepath
                       , hslogger
                       , mqtt
@@ -71,7 +74,7 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
 
-executable hummingbird-broker
+executable hummingbird
   build-depends:
     base,
     mqtt,
@@ -79,35 +82,4 @@ executable hummingbird-broker
   ghc-options:      -rtsopts -Wall -O2 -threaded -fprof-auto -with-rtsopts=-T
   default-language: Haskell2010
   hs-source-dirs:   app
-  main-is:          hummingbird-broker.hs
-
-executable hummingbird-cli
-  build-depends:
-      base
-    , binary
-    , bytestring
-    , filepath
-    , hummingbird
-    , mqtt
-    , options
-    , socket
-    , socket-unix
-    , text
-    , unix
-    , haskeline
-    , transformers
-  ghc-options:      -rtsopts -Wall -O2 -threaded -fprof-auto
-  default-language: Haskell2010
-  hs-source-dirs:   app
-  main-is:          hummingbird-cli.hs
-
-executable hummingbird-pwhash
-  build-depends:
-      base
-    , bcrypt
-    , bytestring
-    , filepath
-  ghc-options:      -Wall -O2
-  default-language: Haskell2010
-  hs-source-dirs:   app
-  main-is:          hummingbird-pwhash.hs
+  main-is:          hummingbird.hs

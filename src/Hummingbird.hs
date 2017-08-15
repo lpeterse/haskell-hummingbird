@@ -1,10 +1,9 @@
 {-# LANGUAGE ExplicitForAll      #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
-module Hummingbird ( run ) where
+module Hummingbird ( Hummingbird.Hummingbird (), Hummingbird.VendorSettings (..), runWithVendorSettings ) where
 --------------------------------------------------------------------------------
 -- |
 -- Module      :  Hummingbird
@@ -16,9 +15,6 @@ module Hummingbird ( run ) where
 --------------------------------------------------------------------------------
 
 import           Data.Aeson
-import           Data.Proxy
-import           Data.Version
-import           Options
 
 import           Network.MQTT.Broker.Authentication (Authenticator,
                                                      AuthenticatorConfig)
@@ -27,16 +23,75 @@ import qualified Hummingbird.Administration.Server  as Administration
 import qualified Hummingbird.Configuration          as Config
 import qualified Hummingbird.Internal               as Hummingbird
 
-newtype MainOptions = MainOptions
-  { mainSettingsFilePath :: FilePath }
+
+import qualified Crypto.BCrypt                      as BCrypt
+import qualified Data.ByteString.Char8              as BS
+import           Data.Version                       (showVersion)
+import           Options
+import           System.Exit
+import           System.IO
+
+import qualified Hummingbird.Administration.Cli     as Cli
+import           Hummingbird.Configuration
+import qualified Hummingbird.Internal               as HI
+import           Hummingbird.SimpleAuthenticator
+
+import           Paths_hummingbird                  (version)
+
+{-# ANN module "HLint: ignore Use newtype instead of data" #-}
+
+data VendorSettings auth = VendorSettings
+  { vendorVersionName :: String
+  } deriving (Eq, Ord, Show)
+
+data MainOptions = MainOptions
+
+data BrokerOptions = BrokerOptions
+  { configFilePath :: FilePath }
+
+data VersionOptions = VersionOptions
 
 instance Options MainOptions where
-  defineOptions = MainOptions
-    <$> simpleOption "settings" "/etc/hummingbird/settings.yml" "Path to the .yml settings file"
+  defineOptions = pure MainOptions
 
-run :: forall auth. (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Version -> Proxy (Config.Config auth) -> IO ()
-run version _ =
-  runCommand $ \mainOpts _args-> do
-    hum <- Hummingbird.new version ( mainSettingsFilePath mainOpts ) :: IO (Hummingbird.Hummingbird auth)
-    Hummingbird.start hum
-    Administration.run hum
+instance Options BrokerOptions where
+  defineOptions = BrokerOptions
+    <$> simpleOption "config" "/etc/hummingbird/config.yml" "Path to the .yml config file"
+
+instance Options VersionOptions where
+  defineOptions = pure VersionOptions
+
+runWithVendorSettings :: forall auth. (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => VendorSettings auth -> IO ()
+runWithVendorSettings vendorSettings = runSubcommand
+  [ subcommand "cli"     Cli.run
+  , subcommand "broker"  runBroker
+  , subcommand "pwhash"  runPwhash
+  , subcommand "version" runVersion
+  ]
+  where
+
+    runBroker :: MainOptions -> BrokerOptions -> [String] -> IO ()
+    runBroker _ opts _ = do
+      hum <- HI.new settings :: IO (Hummingbird.Hummingbird auth)
+      HI.start hum
+      Administration.run hum
+      where
+        settings = HI.Settings {
+          HI.versionName = vendorVersionName vendorSettings
+        , HI.configFilePath = configFilePath opts
+        }
+
+    runPwhash :: MainOptions -> VersionOptions -> [String] -> IO ()
+    runPwhash _ _ _ = do
+      hSetEcho stdin False
+      password <- BS.getLine
+      mhash <- BCrypt.hashPasswordUsingPolicy
+        (BCrypt.fastBcryptHashingPolicy { BCrypt.preferredHashCost = 8 })
+        password
+      case mhash of
+        Nothing   -> exitFailure
+        Just hash -> BS.putStrLn hash
+
+    runVersion :: MainOptions -> VersionOptions -> [String] -> IO ()
+    runVersion _ _ _ =
+      putStrLn (vendorVersionName vendorSettings)
