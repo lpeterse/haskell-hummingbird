@@ -1,14 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Hummingbird.Transport ( run, Config (..) ) where
---------------------------------------------------------------------------------
--- |
--- Module      :  Hummingbird.Transport
--- Copyright   :  (c) Lars Petersen 2017
--- License     :  MIT
---
--- Maintainer  :  info@lars-petersen.net
--- Stability   :  experimental
---------------------------------------------------------------------------------
 
 import           Control.Concurrent.Async
 import           Control.Exception

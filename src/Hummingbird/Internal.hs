@@ -33,14 +33,17 @@ import           Control.Concurrent.Async
 import           Control.Exception
 import           Control.Monad
 import           Data.Aeson
+import           Data.Default.Class
+import qualified Prometheus
 import           System.Exit
 import           System.IO
-
+import qualified System.Log.Logger                  as Log
 
 import qualified Network.MQTT.Broker                as Broker
 import           Network.MQTT.Broker.Authentication (Authenticator,
                                                      AuthenticatorConfig)
 import qualified Network.MQTT.Broker.Authentication as Authentication
+import qualified Network.MQTT.Broker.Session        as Session
 
 import           Hummingbird.Configuration
 import qualified Hummingbird.Logging                as Logging
@@ -87,7 +90,8 @@ new settings = do
   mconfig        <- newMVar config
   mauthenticator <- newMVar =<< Authentication.newAuthenticator (auth config)
 
-  broker <- Broker.newBroker (readMVar mauthenticator)
+  metrics        <- Prometheus.newRegisteredMetrics
+  broker         <- Broker.newBroker (readMVar mauthenticator) (brokerCallbacks metrics)
 
   mterminator    <- newMVar =<< async (Terminator.run broker)
   mtransports    <- newMVar =<< async (Transport.run broker $ transports config)
@@ -104,6 +108,39 @@ new settings = do
    , humSysInfo       = msysinfo
    , humPrometheus    = mprometheus
    }
+  where
+    brokerCallbacks metrics = def {
+        Broker.onConnectionAccepted = \req session-> do
+          Prometheus.incCounter (Prometheus.hummingbird_connections_accepted_total metrics)
+          Log.infoM "hummingbird" $
+            "Connection from " ++ show (Authentication.requestRemoteAddress req) ++
+            " associated with " ++ show (Session.principalIdentifier session) ++
+            " and " ++ show (Session.identifier session) ++  "."
+
+      , Broker.onConnectionRejected = \req reason-> do
+          Prometheus.incCounter (Prometheus.hummingbird_connections_rejected_total metrics)
+          Log.warningM "hummingbird" $
+            "Connection from " ++ show (Authentication.requestRemoteAddress req) ++
+            " rejected: " ++ show reason ++ "."
+
+      , Broker.onConnectionClosed = \session-> do
+          Prometheus.incCounter (Prometheus.hummingbird_connections_closed_total metrics)
+          Log.infoM "hummingbird" $
+            "Connection associated with " ++ show (Session.identifier session) ++
+            " closed by client."
+
+      , Broker.onConnectionFailed = \session e-> do
+          Prometheus.incCounter (Prometheus.hummingbird_connections_failed_total metrics)
+          Log.warningM "hummingbird" $
+            "Connection associated with " ++ show (Session.identifier session) ++
+            " failed with exception: " ++ show e ++ "."
+
+      , Broker.onPublishUpstream   = \_->
+          Prometheus.incCounter (Prometheus.hummingbird_publications_upstream_total metrics)
+
+      , Broker.onPublishDownstream = \_->
+          Prometheus.incCounter (Prometheus.hummingbird_publications_downstream_total metrics)
+      }
 
 start :: Authenticator auth => Hummingbird auth -> IO ()
 start hum = do

@@ -14,29 +14,21 @@ module Hummingbird ( Hummingbird.Hummingbird (), Hummingbird.VendorSettings (..)
 -- Stability   :  experimental
 --------------------------------------------------------------------------------
 
-import           Data.Aeson
-
-import           Network.MQTT.Broker.Authentication (Authenticator,
-                                                     AuthenticatorConfig)
-
-import qualified Hummingbird.Administration.Server  as Administration
-import qualified Hummingbird.Configuration          as Config
-import qualified Hummingbird.Internal               as Hummingbird
-
-
 import qualified Crypto.BCrypt                      as BCrypt
+import           Data.Aeson
 import qualified Data.ByteString.Char8              as BS
-import           Data.Version                       (showVersion)
 import           Options
 import           System.Exit
 import           System.IO
 
-import qualified Hummingbird.Administration.Cli     as Cli
-import           Hummingbird.Configuration
-import qualified Hummingbird.Internal               as HI
-import           Hummingbird.SimpleAuthenticator
+import           Network.MQTT.Broker.Authentication (Authenticator,
+                                                     AuthenticatorConfig)
 
-import           Paths_hummingbird                  (version)
+import qualified Hummingbird.Administration.Cli     as Cli
+import qualified Hummingbird.Administration.Server  as Administration
+import qualified Hummingbird.Configuration          as Config
+import qualified Hummingbird.Internal               as Hummingbird
+import qualified Hummingbird.Internal               as HI
 
 {-# ANN module "HLint: ignore Use newtype instead of data" #-}
 
