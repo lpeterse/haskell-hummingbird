@@ -1,0 +1,37 @@
+auth:
+  defaultQuota:
+    maxIdleSessionTTL:    0
+    maxPacketSize:        65535
+    maxPacketIdentifiers: 10
+    maxQueueSizeQoS0:     100
+    maxQueueSizeQoS1:     100
+    maxQueueSizeQoS2:     100
+  principals:
+    e4f7f759-a7f0-4ae7-8140-766269e1c503:
+      username: "mqtt-default"
+      password: "$2y$14$z1TeFmnk9zirP1Ml55lVyuOWOhaYyqlHlvd6meaze2KDYPH8hrdsS"
+      permissions:
+        "abc/def": [ SUB ]
+        "abc/#": [ PUB ]
+
+admin:
+  socketPath: "/var/run/hummingbird/hummingbird.socket"
+
+transports:
+  - type: socket
+    bindAddress: 0.0.0.0
+    bindPort: 1883
+    listenBacklog: 5
+    connectionLimit: 2
+  - type: websocket
+    transport:
+      type: socket
+      bindAddress: 0.0.0.0
+      bindPort: 1884
+      listenBacklog: 5
+      connectionLimit: 2
+
+logging:
+  level: INFO
+  appenders:
+    - type: syslog
