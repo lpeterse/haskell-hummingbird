@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+
 module Hummingbird.Administration.Response where
 --------------------------------------------------------------------------------
 -- |
@@ -13,6 +14,7 @@ module Hummingbird.Administration.Response where
 import           Control.Monad
 import           Control.Monad.IO.Class
 import qualified Data.Binary                        as B
+import qualified Data.ByteString.Lazy               as LBS
 import           Data.Int
 import           Data.Maybe
 import           Data.UUID                          (UUID)
@@ -28,7 +30,8 @@ import           Network.MQTT.Broker.Session        (ConnectionState (..),
                                                      connectedSecure,
                                                      connectedWebSocket)
 import           Network.MQTT.Message               (ClientIdentifier (..),
-                                                     Username (..))
+                                                     Message (..), Payload (..),
+                                                     Retain (..), Username (..))
 import qualified Network.MQTT.Trie                  as Trie
 
 import           System.Clock
@@ -164,6 +167,17 @@ render p (Session s) = do
       case connectedRemoteAddress cs of
         Nothing   -> pure ()
         Just addr -> format "  Remote Address               " $ escapeByteString addr
+      case connectedWill cs of
+        Nothing   -> pure ()
+        Just will -> do
+          p $ cyan "  Will"
+          format   "    Topic                      " $ show $ msgTopic will
+          format   "    QoS                        " $ show $ msgQoS will
+          format   "    Retain                     " $ let Retain x = msgRetain will in show x
+          format   "    Payload                    " $ let Payload x = msgPayload will in
+                                                       show (LBS.take 43 x) ++ if LBS.length x > 43
+                                                                                 then " ..."
+                                                                                 else mempty
     cs@Disconnected {} -> do
       format "Connection                     " $ lightRed "disconnected"
       format "  Disconnected since           " $ ago $ now - disconnectedAt cs

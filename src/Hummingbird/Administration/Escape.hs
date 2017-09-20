@@ -9,8 +9,9 @@ module Hummingbird.Administration.Escape where
 -- Stability   :  experimental
 --------------------------------------------------------------------------------
 
-import qualified Data.ByteString as BS
-import qualified Data.Text       as T
+import qualified Data.ByteString      as BS
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text            as T
 
 banner :: String
 banner =
@@ -81,3 +82,6 @@ escapeText = init . tail . show
 
 escapeByteString :: BS.ByteString -> String
 escapeByteString = init . tail . show
+
+escapeLazyByteString :: LBS.ByteString -> String
+escapeLazyByteString = init . tail . show
