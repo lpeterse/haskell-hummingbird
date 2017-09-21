@@ -12,7 +12,6 @@ module Main where
 import           Data.Version                    (showVersion)
 
 import           Hummingbird
-import           Hummingbird.Configuration
 import           Hummingbird.SimpleAuthenticator
 
 import           Paths_hummingbird               (version)

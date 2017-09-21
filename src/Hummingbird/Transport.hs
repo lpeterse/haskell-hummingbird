@@ -10,6 +10,7 @@ import           Data.Default
 import           Data.Int
 import qualified Data.Text                          as T
 import qualified Data.Text.Encoding                 as T
+import           Data.Typeable
 import           Data.Word
 import qualified Data.X509.CertificateStore         as X509
 import qualified Network.Stack.Server               as SS
@@ -25,6 +26,7 @@ import qualified System.Socket.Type.Stream          as S
 import qualified Network.MQTT.Broker                as Broker
 import           Network.MQTT.Broker.Authentication
 import qualified Network.MQTT.Broker.Server         as Server
+import           Network.MQTT.Message               (ClientIdentifier (..))
 
 run :: Authenticator auth => Broker.Broker auth -> [ Config ] -> IO ()
 run broker transportConfigs =
@@ -39,7 +41,7 @@ runTransport broker transportConfig = case transportConfig of
     cfg <- createSocketConfig transportConfig
     let mqttConfig = Server.MqttServerConfig {
         Server.mqttTransportConfig = cfg
-      } :: SS.ServerConfig (Server.MQTT (S.Socket S.Inet S.Stream S.Default))
+      } :: SS.ServerConfig (Server.Mqtt (S.Socket S.Inet S.Stream S.Default))
     runServerStack mqttConfig broker
   TlsTransport {} -> do
     cfg <- createSecureSocketConfig transportConfig
@@ -74,14 +76,15 @@ runTransport broker transportConfig = case transportConfig of
   _ -> error "Server stack not implemented."
   where
     createSocketConfig :: Config -> IO (SS.ServerConfig (S.Socket S.Inet S.Stream S.Default))
-    createSocketConfig (SocketTransport a p b) = do
+    createSocketConfig (SocketTransport a p b l) = do
       (addrinfo:_) <- S.getAddressInfo (Just $ T.encodeUtf8 a) (Just $ T.encodeUtf8 $ T.pack $ show p) (mconcat [S.aiNumericHost, S.aiNumericService]) :: IO [S.AddressInfo S.Inet S.Stream S.Default]
       pure SS.SocketServerConfig {
             SS.socketServerConfigBindAddress = S.socketAddress addrinfo
           , SS.socketServerConfigListenQueueSize = b
+          , SS.socketServerConfigConnectionLimit = l
         }
     createSocketConfig _ = error "not a socket config"
-    createSecureSocketConfig :: Config -> IO (SS.ServerConfig (SS.TLS (S.Socket S.Inet S.Stream S.Default)))
+    createSecureSocketConfig :: Config -> IO (SS.ServerConfig (SS.Tls (S.Socket S.Inet S.Stream S.Default)))
     createSecureSocketConfig (TlsTransport tc cc ca crt key) = do
       mcs <- X509.readCertificateStore ca
       case mcs of
@@ -117,9 +120,9 @@ runTransport broker transportConfig = case transportConfig of
                   }
     createSecureSocketConfig _ = error "not a tls config"
 
-runServerStack :: (Authenticator auth, SS.StreamServerStack transport, Server.MqttServerTransportStack transport) => SS.ServerConfig (Server.MQTT transport) -> Broker.Broker auth -> IO ()
+runServerStack :: (Authenticator auth, SS.StreamServerStack transport, Server.MqttServerTransportStack transport) => SS.ServerConfig (Server.Mqtt transport) -> Broker.Broker auth -> IO ()
 runServerStack serverConfig broker =
-  SS.withServer serverConfig $ \server-> forever $ SS.withConnection server $ \connection info->
+  SS.withServer serverConfig $ \server-> forever $ SS.serveForever server $ \connection info->
     Server.serveConnection broker connection info
 
 -------------------------------------------------------------------
@@ -128,9 +131,10 @@ runServerStack serverConfig broker =
 
 data Config
    = SocketTransport
-     { bindAddress   :: T.Text
-     , bindPort      :: Word16
-     , listenBacklog :: Int
+     { bindAddress     :: T.Text
+     , bindPort        :: Word16
+     , listenBacklog   :: Int
+     , connectionLimit :: Int
      }
    | WebSocketTransport
      { wsTransport             :: Config
@@ -158,6 +162,7 @@ instance FromJSON Config where
         <$> v .: "bindAddress"
         <*> v .: "bindPort"
         <*> v .: "listenBacklog"
+        <*> v .: "connectionLimit"
       "tls" -> TlsTransport
         <$> v .: "transport"
         <*> v .: "wantClientCert"
@@ -166,3 +171,33 @@ instance FromJSON Config where
         <*> v .: "keyFilePath"
       _ -> fail "Expected 'socket', 'websocket' or 'tls'."
   parseJSON invalid = typeMismatch "Config" invalid
+
+instance (Typeable f, Typeable t, Typeable p, S.Family f, S.Protocol p, S.Type t, S.HasNameInfo f) => Server.MqttServerTransportStack (S.Socket f t p) where
+  getConnectionRequest (SS.SocketServerConnectionInfo addr) = do
+    remoteAddr <- S.hostName <$> S.getNameInfo addr (S.niNumericHost `mappend` S.niNumericService)
+    pure ConnectionRequest {
+        requestClientIdentifier = ClientIdentifier mempty
+      , requestSecure = False
+      , requestCleanSession = True
+      , requestCredentials = Nothing
+      , requestHttp = Nothing
+      , requestCertificateChain = Nothing
+      , requestRemoteAddress = Just remoteAddr
+      , requestWill = Nothing
+      }
+
+instance (SS.StreamServerStack a, Server.MqttServerTransportStack a) => Server.MqttServerTransportStack (SS.WebSocket a) where
+  getConnectionRequest (SS.WebSocketServerConnectionInfo tci rh) = do
+    req <- Server.getConnectionRequest tci
+    pure req {
+        requestHttp = Just (WS.requestPath rh, WS.requestHeaders rh)
+      }
+
+instance (SS.StreamServerStack a, Server.MqttServerTransportStack a) => Server.MqttServerTransportStack (SS.Tls a) where
+  getConnectionRequest (SS.TlsServerConnectionInfo tci mcc) = do
+    req <- Server.getConnectionRequest tci
+    pure req {
+        requestSecure = True
+      , requestCertificateChain = mcc
+      }
+
