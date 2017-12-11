@@ -13,10 +13,13 @@ import qualified Data.Text.Encoding                 as T
 import           Data.Typeable
 import           Data.Word
 import qualified Data.X509.CertificateStore         as X509
-import qualified Network.Stack.Server               as SS
 import qualified Network.TLS                        as TLS
 import qualified Network.TLS.Extra.Cipher           as TLS
 import qualified Network.WebSockets                 as WS
+import qualified Networking                         as SS
+import qualified Networking.Socket                  as SS
+import qualified Networking.TLS                     as SS
+import qualified Networking.WebSocket               as SS
 import qualified System.Log.Logger                  as LOG
 import qualified System.Socket                      as S
 import qualified System.Socket.Family.Inet          as S
@@ -39,40 +42,28 @@ runTransport :: Authenticator auth => Broker.Broker auth -> Config -> IO ()
 runTransport broker transportConfig = case transportConfig of
   SocketTransport {} -> do
     cfg <- createSocketConfig transportConfig
-    let mqttConfig = Server.MqttServerConfig {
-        Server.mqttTransportConfig = cfg
-      } :: SS.ServerConfig (Server.Mqtt (S.Socket S.Inet S.Stream S.Default))
-    runServerStack mqttConfig broker
+    runServerStack broker (cfg :: SS.ServerConfig (S.Socket S.Inet S.Stream S.Default))
   TlsTransport {} -> do
     cfg <- createSecureSocketConfig transportConfig
-    let mqttConfig = Server.MqttServerConfig {
-        Server.mqttTransportConfig = cfg
-      }
-    runServerStack mqttConfig broker
+    runServerStack broker cfg
   WebSocketTransport { wsTransport = tc@SocketTransport {}, wsFramePayloadSizeLimit = fpsl, wsMessageDataSizeLimit = mdsl } -> do
     cfg <- createSocketConfig tc
-    let mqttConfig = Server.MqttServerConfig {
-      Server.mqttTransportConfig = SS.WebSocketServerConfig {
+    runServerStack broker $ SS.WebSocketServerConfig {
         SS.wsTransportConfig = cfg
       , SS.wsConnectionOptions = WS.defaultConnectionOptions {
           WS.connectionFramePayloadSizeLimit = WS.SizeLimit fpsl
         , WS.connectionMessageDataSizeLimit = WS.SizeLimit mdsl
         }
       }
-    }
-    runServerStack mqttConfig broker
   WebSocketTransport { wsTransport = tc@TlsTransport {}, wsFramePayloadSizeLimit = fpsl, wsMessageDataSizeLimit = mdsl } -> do
     cfg <- createSecureSocketConfig tc
-    let mqttConfig = Server.MqttServerConfig {
-      Server.mqttTransportConfig = SS.WebSocketServerConfig {
+    runServerStack broker $ SS.WebSocketServerConfig {
         SS.wsTransportConfig = cfg
       , SS.wsConnectionOptions = WS.defaultConnectionOptions {
           WS.connectionFramePayloadSizeLimit = WS.SizeLimit fpsl
         , WS.connectionMessageDataSizeLimit = WS.SizeLimit mdsl
         }
       }
-    }
-    runServerStack mqttConfig broker
   _ -> error "Server stack not implemented."
   where
     createSocketConfig :: Config -> IO (SS.ServerConfig (S.Socket S.Inet S.Stream S.Default))
@@ -120,10 +111,11 @@ runTransport broker transportConfig = case transportConfig of
                   }
     createSecureSocketConfig _ = error "not a tls config"
 
-runServerStack :: (Authenticator auth, SS.StreamServerStack transport, Server.MqttServerTransportStack transport) => SS.ServerConfig (Server.Mqtt transport) -> Broker.Broker auth -> IO ()
-runServerStack serverConfig broker =
-  SS.withServer serverConfig $ \server-> forever $ SS.serveForever server $ \connection info->
-    Server.serveConnection broker connection info
+runServerStack :: (Authenticator auth, SS.ServerStack transport, SS.StreamOriented transport, Server.MqttServerTransportStack transport) => Broker.Broker auth -> SS.ServerConfig transport -> IO ()
+runServerStack broker config =
+  SS.withServer config $ \server->
+    forever $ SS.serveForever server $ \connection info->
+      Server.serveConnection broker connection info
 
 -------------------------------------------------------------------
 -- Configuration
@@ -173,7 +165,7 @@ instance FromJSON Config where
   parseJSON invalid = typeMismatch "Config" invalid
 
 instance (Typeable f, Typeable t, Typeable p, S.Family f, S.Protocol p, S.Type t, S.HasNameInfo f) => Server.MqttServerTransportStack (S.Socket f t p) where
-  getConnectionRequest (SS.SocketServerConnectionInfo addr) = do
+  getConnectionRequest (SS.SocketConnectionInfo addr) = do
     remoteAddr <- S.hostName <$> S.getNameInfo addr (S.niNumericHost `mappend` S.niNumericService)
     pure ConnectionRequest {
         requestClientIdentifier = ClientIdentifier mempty
@@ -186,18 +178,17 @@ instance (Typeable f, Typeable t, Typeable p, S.Family f, S.Protocol p, S.Type t
       , requestWill = Nothing
       }
 
-instance (SS.StreamServerStack a, Server.MqttServerTransportStack a) => Server.MqttServerTransportStack (SS.WebSocket a) where
-  getConnectionRequest (SS.WebSocketServerConnectionInfo tci rh) = do
+instance (SS.ServerStack a, Server.MqttServerTransportStack a) => Server.MqttServerTransportStack (SS.WebSocket a) where
+  getConnectionRequest (SS.WebSocketConnectionInfo tci rh) = do
     req <- Server.getConnectionRequest tci
     pure req {
         requestHttp = Just (WS.requestPath rh, WS.requestHeaders rh)
       }
 
-instance (SS.StreamServerStack a, Server.MqttServerTransportStack a) => Server.MqttServerTransportStack (SS.Tls a) where
-  getConnectionRequest (SS.TlsServerConnectionInfo tci mcc) = do
+instance (SS.ServerStack a, Server.MqttServerTransportStack a) => Server.MqttServerTransportStack (SS.Tls a) where
+  getConnectionRequest (SS.TlsConnectionInfo tci mcc) = do
     req <- Server.getConnectionRequest tci
     pure req {
         requestSecure = True
       , requestCertificateChain = mcc
       }
-

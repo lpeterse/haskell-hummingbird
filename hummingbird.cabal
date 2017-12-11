@@ -71,7 +71,7 @@ library
                       , prometheus-metrics-ghc
                       , wai-middleware-prometheus
                       , warp
-                      , network-stacks
+                      , networking
   hs-source-dirs:      src
   default-language:    Haskell2010
 

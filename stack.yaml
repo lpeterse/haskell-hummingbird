@@ -2,12 +2,12 @@ resolver: lts-9.0
 packages:
   - '.'
   - '../haskell-mqtt'
-  - '../haskell-network-stack'
+  - '../haskell-networking'
   # - location:
   #     git: https://github.com/lpeterse/haskell-mqtt.git
   #     commit: 6fc7b9ee4f3b040ecb1d2d2054b40b39313295f3
 extra-deps:
-  - mqtt-0.4.0.0
+#  - mqtt-0.4.0.0
   - socket-unix-0.2.0.0
   - websockets-0.12.1.0
 flags: {}
