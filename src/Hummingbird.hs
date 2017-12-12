@@ -26,7 +26,6 @@ import           Network.MQTT.Broker.Authentication (Authenticator,
 
 import qualified Hummingbird.Administration.Cli     as Cli
 import qualified Hummingbird.Administration.Server  as Administration
-import qualified Hummingbird.Configuration          as Config
 import qualified Hummingbird.Internal               as Hummingbird
 import qualified Hummingbird.Internal               as HI
 
