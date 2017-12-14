@@ -14,14 +14,16 @@ import qualified Data.Text       as T
 
 banner :: String
 banner =
-  "\ESC[0;31m" ++
-  "|_     _ _  _ _ . _  _ |_ . _ _|\n" ++
-  "| ||_|| | || | ||| |(_||_)|| (_|\n" ++
-  "\ESC[0;33m---------------------"    ++
-  "\ESC[0;31m_|\ESC[0;33m---------\ESC[0m"
+  "\ESC[0;35m" ++
+  " _                               _             _     _         _ \n" ++
+  "| |__  _   _ _ __ ___  _ __ ___ (_)_ __   __ _| |__ (_)_ __ __| |\n" ++
+  "| '_ \\| | | | '_ ` _ \\| '_ ` _ \\| | '_ \\ / _` | '_ \\| | '__/ _` |\n" ++
+  "| | | | |_| | | | | | | | | | | | | | | | (_| | |_) | | | | (_| |\n" ++
+  "|_| |_|\\__,_|_| |_| |_|_| |_| |_|_|_| |_|\\__, |_.__/|_|_|  \\__,_|\n" ++
+  "                                         |___/\ESC[0m\n"
 
 prompt :: String
-prompt = "\ESC[0;32mhummingbird\ESC[0;35m \x1F54A \ESC[0m"
+prompt = "\ESC[0;32mhummingbird\ESC[0;35m % \ESC[0m"
 
 leftPad :: Int -> Char -> String -> String
 leftPad i c s = replicate (i - length s) c ++ s

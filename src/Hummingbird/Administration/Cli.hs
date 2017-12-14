@@ -12,14 +12,12 @@
 module Hummingbird.Administration.Cli where
 
 import           Control.Exception                   (bracket)
-import           Control.Monad                       (void)
+import           Control.Monad                       (forever, void)
 import           Control.Monad.Trans.Class           (lift)
 import qualified Data.Binary                         as B
 import qualified Data.Binary.Get                     as B
 import qualified Data.Binary.Put                     as B
 import qualified Data.ByteString                     as BS
-import           Data.Function
-import           Data.Maybe
 import qualified Data.Text                           as T
 import qualified Data.Text.Encoding                  as T
 import           Options
@@ -58,20 +56,16 @@ run _ opts _ =
 runInteractive :: CliOptions -> IO ()
 runInteractive opts = H.runInputT H.defaultSettings $ do
   H.outputStrLn banner
+  lift (execRequest Request.BrokerStatus) >>= Response.render H.outputStrLn
   H.outputStrLn ""
-  lift (execRequest Request.Broker) >>= Response.render H.outputStrLn
-  H.outputStrLn ""
-  let loop = H.withInterrupt $ fix $ \continue->
-        (Request.parse . fromMaybe "" <$> H.getInputLine prompt) >>= \case
-          Left _ ->
-            pure ()
-          Right Request.Quit ->
-            pure ()
-          Right cmd  -> do
-            response <- lift $ execRequest cmd
-            Response.render H.outputStrLn response
-            continue
-  H.handleInterrupt loop loop
+  forever $ H.handleInterrupt (pure ()) $ H.withInterrupt $ H.getInputLine prompt >>= \case
+    Nothing   -> lift exitSuccess -- user pressed ctrl+D
+    Just line -> case Request.parse line of
+      Right Request.Quit -> lift exitSuccess
+      Right cmd          -> do
+        response <- lift $ execRequest cmd
+        Response.render H.outputStrLn response
+      Left e             -> H.outputStrLn (lightRed  e)
   where
     execRequest :: Request.Request -> IO Response.Response
     execRequest cmd = case S.socketAddressUnixPath (T.encodeUtf8 $ T.pack $ socket opts) of

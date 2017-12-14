@@ -128,8 +128,8 @@ process :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Request.
 process Request.Help _ =
   pure Response.Help
 
-process Request.Broker broker =
-  Response.BrokerInfo
+process Request.BrokerStatus broker =
+  Response.BrokerStatus
   <$> pure (versionName $ humSettings broker)
   <*> Broker.getUptime (humBroker broker)
   <*> (IM.size <$> Broker.getSessions (humBroker broker))
@@ -143,40 +143,40 @@ process Request.Broker broker =
     status (Just (Right ())) = Response.Stopped
     status (Just (Left e))   = Response.StoppedWithException (show e)
 
-process Request.Auth broker = do
+process Request.AuthStatus broker = do
   authenticator <- readMVar (humAuthenticator broker)
   e <- getLastException authenticator
-  pure $ Response.AuthInfo (show <$> e)
+  pure $ Response.AuthStatus (show <$> e)
 
-process Request.AuthReload broker =
+process Request.AuthRestart broker =
   try (restartAuthenticator broker) >>= \case
     Right () -> pure (Response.Success "Done.")
     Left e   -> pure (Response.Failure $ show (e :: SomeException ))
 
-process Request.Sessions broker = do
+process Request.SessionList broker = do
   sessions <- Broker.getSessions (humBroker broker)
   Response.SessionList <$> mapM sessionInfo (IM.elems sessions)
 
-process (Request.SessionsSelect sid) broker =
+process (Request.SessionStatus sid) broker =
   Broker.lookupSession sid (humBroker broker) >>= \case
     Nothing -> pure (Response.Failure "Session not found.")
-    Just s  -> Response.Session <$> sessionInfo s
+    Just s  -> Response.SessionStatus <$> sessionInfo s
 
-process (Request.SessionsSelectDisconnect sid) broker =
+process (Request.SessionDisconnect sid) broker =
   Broker.lookupSession sid (humBroker broker) >>= \case
     Nothing -> pure (Response.Failure "Session not found.")
     Just s  -> try (Session.disconnect s) >>= \case
       Right () -> pure (Response.Success "Done.")
       Left e   -> pure (Response.Failure $ show (e :: SomeException))
 
-process (Request.SessionsSelectTerminate sid) broker =
+process (Request.SessionTerminate sid) broker =
   Broker.lookupSession sid (humBroker broker) >>= \case
     Nothing -> pure (Response.Failure "Session not found.")
     Just s  -> try (Session.terminate s) >>= \case
       Right () -> pure (Response.Success "Done.")
       Left e   -> pure (Response.Failure $ show (e :: SomeException))
 
-process (Request.SessionsSelectSubscriptions sid) broker =
+process (Request.SessionSubscriptions sid) broker =
   Broker.lookupSession sid (humBroker broker) >>= \case
     Nothing -> pure (Response.Failure "Session not found.")
     Just s  -> Response.SessionSubscriptions . show <$> Session.getSubscriptions s
@@ -197,7 +197,7 @@ process Request.TransportsStop broker =
     Right () -> pure (Response.Success "Done.")
     Left e -> pure (Response.Failure $ show (e :: SomeException))
 
-process Request.Config broker =
+process Request.ConfigStatus broker =
   getConfig broker >>= \config-> pure (Response.Success $ show config)
 
 process Request.ConfigReload broker =

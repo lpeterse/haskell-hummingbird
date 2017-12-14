@@ -39,10 +39,10 @@ data Response
    = Success String
    | Failure String
    | Help
-   | AuthInfo
+   | AuthStatus
    { authLastException         :: Maybe String
    }
-   | BrokerInfo
+   | BrokerStatus
    { brokerVersion                :: String
    , brokerUptime                 :: Int64
    , brokerSessionCount           :: Int
@@ -52,8 +52,8 @@ data Response
    , brokerSysInfoThreadStatus    :: ThreadStatus
    , brokerPrometheusThreadStatus :: ThreadStatus
    }
-   | Session SessionInfo
    | SessionList [SessionInfo]
+   | SessionStatus SessionInfo
    | SessionSubscriptions String
    deriving (Eq, Show, Generic)
 
@@ -93,21 +93,27 @@ render p (Failure msg) =
 
 render p Help = do
     p "help                      : show this help"
-    p "broker                    : show broker information"
+    p "broker"
+    p "  status                  : show broker status"
     p "config"
+    p "  status                  : show config status"
     p "  reload                  : reload configuration file (does not apply it!)"
     p "auth"
+    p "  status                  : show status of authentication module"
     p "  restart                 : restart the authentication module (after config file reload)"
-    p "sessions                  : list all sessions"
-    p "  [0-9]+                  : show session summary"
+    p "session"
+    p "  list                    : list all sessions"
+    p "  [0-9]+"
+    p "    status                : show session status"
     p "    disconnect            : disconnect associated client (if any)"
     p "    subscriptions         : show session subscriptions"
     p "    terminate             : terminate session (and disconnect client)"
-    p "transports                : show status of transports"
+    p "transport"
+    p "  status                  : show transports status"
     p "  start                   : start transports"
     p "  stop                    : stop transports"
 
-render p info@BrokerInfo {} = do
+render p info@BrokerStatus {} = do
   format "Version              " $ brokerVersion info
   format "Uptime               " $ ago (brokerUptime info)
   format "Sessions             " $ show (brokerSessionCount info)
@@ -121,13 +127,13 @@ render p info@BrokerInfo {} = do
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m"
 
-render p info@AuthInfo {} =
+render p info@AuthStatus {} =
   format "Last exception      " $ show (authLastException info)
   where
     format key value =
       p $ cyan key ++ ": " ++ lightCyan value ++ "\ESC[0m"
 
-render p (Session s) = do
+render p (SessionStatus s) = do
   now <- liftIO $ sec <$> getTime Realtime
   format "Alive since                    " $ ago $ now - sessionCreatedAt s
   case sessionConnectionState s of
