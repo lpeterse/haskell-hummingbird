@@ -1,0 +1,6 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: hummingbird
+
+Files: *
+Copyright: 2018 Lars Petersen
+License: MIT

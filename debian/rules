@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+
+%:
+	ls -lah .stack-work/dist/*/Cabal-*/build
+	dh $@
+
+override_dh_auto_build:
+
+override_dh_auto_install:
+
+

@@ -1,0 +1,20 @@
+[Unit]
+Description=hummingbird MQTT broker daemon
+Requires=network.target
+
+[Service]
+Restart=on-failure
+User=hummingbird
+Group=hummingbird
+WorkingDirectory=/var/lib/hummingbird
+KillSignal=SIGINT
+# Run ExecStartPre with root permissions
+PermissionsStartOnly=true
+ExecStartPre=/bin/mkdir -p /run/hummingbird
+ExecStartPre=/bin/chown -R hummingbird:hummingbird /run/hummingbird/
+ExecStartPre=/bin/chmod 750 /run/hummingbird/
+# Run ExecStart with User=hummingbird / Group=hummingbird
+ExecStart=/usr/sbin/hummingbird broker --config=/etc/hummingbird/config.yml
+
+[Install]
+WantedBy=multi-user.target

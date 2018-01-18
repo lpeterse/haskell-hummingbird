@@ -1,20 +1,22 @@
-.PHONY: all build test install doc
+.PHONY: all build test doc dist
 
-all: build test install
+VERSION           := $(shell grep -oP '^version:\s+\K([0-9].[0-9].[0-9].[0-9])' hummingbird.cabal)
+PACKAGE           := hummingbird
+DEBFILE           := ${PACKAGE}_${VERSION}-1_amd64.deb
+
+all: build test doc
 
 build:
 	stack build
 
-build-docker:
-	docker build --rm -t hummingbird .
-	docker run --rm --entrypoint cat hummingbird /hummingbird_0.1.0.0-1_amd64.deb > hummingbird_0.1.0.0-1_amd64.deb
-	docker rmi hummingbird
+test:
+	stack test
 
 doc:
 	stack haddock
 
-test:
-	stack test
-
-install:
-	sudo sh install.sh
+dist:
+	echo "${DEBFILE} unknown optional" > debian/files
+	docker build --rm -t hummingbird .
+	docker run --rm --entrypoint cat hummingbird /${DEBFILE} > ${DEBFILE}
+	docker rmi hummingbird

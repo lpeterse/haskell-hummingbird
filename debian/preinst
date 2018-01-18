@@ -1,0 +1,23 @@
+SERVICE=hummingbird
+USER=hummingbird
+GROUP=hummingbird
+
+DIR_ETC="/etc/$SERVICE"
+DIR_SEC="/etc/$SERVICE/secrets"
+DIR_HOME="/var/lib/$SERVICE"
+
+# Create user and group (if not exists)
+
+if id "$USER" >/dev/null 2>&1; then
+  true
+else
+  useradd --home-dir $DIR_HOME --no-create-home --system --shell /usr/bin/false --user-group $USER
+fi
+
+mkdir -p $DIR_HOME $DIR_ETC $DIR_SEC
+
+chown root:root $DIR_ETC
+chown root:$GROUP $DIR_SEC
+chown $USER:$GROUP $DIR_HOME
+chmod 755 $DIR_ETC
+chmod 750 $DIR_HOME $DIR_SEC

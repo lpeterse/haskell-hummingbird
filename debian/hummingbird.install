@@ -1,0 +1,3 @@
+.stack-work/dist/*/Cabal-*/build/hummingbird/hummingbird usr/sbin
+resources/hummingbird.service lib/systemd/system
+resources usr/share/hummingbird

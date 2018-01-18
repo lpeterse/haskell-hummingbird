@@ -6,4 +6,5 @@ dist
 *.ps
 *.crt
 *.pem
+*.deb
 hummingbird

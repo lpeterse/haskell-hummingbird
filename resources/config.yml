@@ -1,0 +1,48 @@
+auth:
+  defaultQuota:
+    maxIdleSessionTTL:    60
+    maxPacketSize:        65535
+    maxPacketIdentifiers: 10
+    maxQueueSizeQoS0:     100
+    maxQueueSizeQoS1:     100
+    maxQueueSizeQoS2:     100
+  principals:
+    32141bf2-e921-4053-b2fe-cafae8df9af0:
+      username: "hummingbird"
+      password: "$2y$08$rlSYAUbLQVWQlfwdmbnCM.hlWFE6iabxgJ1QKz4USTdL9mfsC9Y92"
+      permissions:
+        "#": [ PUB, SUB, RET ]
+
+admin:
+  socketPath: "/run/hummingbird/S.hummingbird-admin"
+
+transports:
+  - type: socket
+    bindAddress: 0.0.0.0
+    bindPort: 1883
+    listenBacklog: 5
+  - type: websocket
+    transport:
+      type: socket
+      bindAddress: 0.0.0.0
+      bindPort: 1884
+      listenBacklog: 5
+#  - type: tls
+#    transport:
+#      type: socket
+#      bindAddress: 0.0.0.0
+#      bindPort: 8883
+#      listenBacklog: 5
+#    wantClientCert: false
+#    caFilePath: /etc/hummingbird/secrets/ca.crt
+#    crtFilePath: /etc/hummingbird/secrets/cert.crt
+#    keyFilePath: /etc/hummingbird/secrets/cert.key
+
+prometheus:
+  bindAddress: "*"
+  bindPort: 9001
+
+logging:
+  level: INFO
+  appenders:
+    - type: console
