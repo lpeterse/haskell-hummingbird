@@ -15,7 +15,7 @@ module Hummingbird ( Hummingbird.Hummingbird (), Hummingbird.VendorSettings (..)
 --------------------------------------------------------------------------------
 
 import qualified Crypto.BCrypt                      as BCrypt
-import           Data.Aeson
+import           Data.Aeson                         hiding (Options)
 import qualified Data.ByteString.Char8              as BS
 import           Options
 import           System.Exit
