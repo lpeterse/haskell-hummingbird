@@ -61,12 +61,11 @@ run hum = do
       hPutStrLn stderr $ show directory ++ " must not be world-accessible!"
       exitFailure
     -- Make sure the socket file does not already exist.
-    -- QUESTION: Is this a good idea? It could prevent automatic restart after
-    -- unclean shutdown.
+    -- Unlink first and log when existing.
     exists <- Files.fileExist path
     when exists $ do
-      hPutStrLn stderr $ show path ++ " already exists. Other broker running?"
-      exitFailure
+      LOG.warningM "Administration" $ show path  ++ " already exists. Unclean shutdown or another instance running? Will unlink existing socket now."
+      Files.removeLink path
 
     case S.socketAddressUnixPath (T.encodeUtf8 $ T.pack path) of
       Nothing -> do
