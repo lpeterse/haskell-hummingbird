@@ -25,53 +25,56 @@ source-repository head
 
 library
   ghc-options:          -Wall -fno-warn-orphans
-  exposed-modules:      Hummingbird
-                      , Hummingbird.Administration.Cli
-                      , Hummingbird.Administration.Escape
-                      , Hummingbird.Administration.Request
-                      , Hummingbird.Administration.Response
-                      , Hummingbird.Administration.Server
-                      , Hummingbird.Configuration
-                      , Hummingbird.Internal
-                      , Hummingbird.Logging
-                      , Hummingbird.Prometheus
-                      , Hummingbird.SimpleAuthenticator
-                      , Hummingbird.SysInfo
-                      , Hummingbird.Terminator
-                      , Hummingbird.Transport
-  build-depends:        base
-                      , aeson >= 1.1.0.0
-                      , async
-                      , attoparsec
-                      , bcrypt
-                      , binary
-                      , bytestring
-                      , transformers
-                      , clock
-                      , containers
-                      , data-default
-                      , data-default-class
-                      , haskeline
-                      , filepath
-                      , hslogger
-                      , mqtt
-                      , options
-                      , parsec
-                      , socket
-                      , socket-unix
-                      , text
-                      , tls
-                      , unix
-                      , unordered-containers
-                      , uuid
-                      , websockets
-                      , x509
-                      , x509-store
-                      , yaml
-                      , prometheus-client
-                      , prometheus-metrics-ghc
-                      , wai-middleware-prometheus
-                      , warp
+  exposed-modules:
+    Hummingbird,
+    Hummingbird.Administration.Cli,
+    Hummingbird.Administration.Escape,
+    Hummingbird.Administration.Request,
+    Hummingbird.Administration.Response,
+    Hummingbird.Administration.Server,
+    Hummingbird.Configuration,
+    Hummingbird.Internal,
+    Hummingbird.Logging,
+    Hummingbird.Prometheus,
+    Hummingbird.SimpleAuthenticator,
+    Hummingbird.SysInfo,
+    Hummingbird.Terminator,
+    Hummingbird.Transport
+  build-depends: 
+    base,
+    aeson,
+    async,
+    attoparsec,
+    bcrypt,
+    binary,
+    bytestring,
+    transformers,
+    clock,
+    containers,
+    data-default,
+    data-default-class,
+    haskeline,
+    filepath,
+    hslogger,
+    mqtt,
+    networking,
+    options,
+    parsec,
+    socket,
+    socket-unix,
+    text,
+    tls,
+    unix,
+    unordered-containers,
+    uuid,
+    websockets,
+    x509,
+    x509-store,
+    yaml,
+    prometheus-client,
+    prometheus-metrics-ghc,
+    wai-middleware-prometheus,
+    warp
   hs-source-dirs:      src
   default-language:    Haskell2010
 
