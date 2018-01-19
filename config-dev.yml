@@ -21,6 +21,7 @@ transports:
     bindAddress: 0.0.0.0
     bindPort: 1883
     listenBacklog: 5
+    connectionLimit: 2
   - type: websocket
     transport:
       type: socket
