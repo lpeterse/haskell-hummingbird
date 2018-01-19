@@ -25,7 +25,6 @@ import qualified Data.Text                          as T
 import qualified Data.Text.Encoding                 as T
 import           Data.Typeable
 import           Data.UUID                          (UUID)
-import           Data.Word
 
 import           Network.MQTT.Broker.Authentication
 import           Network.MQTT.Message
@@ -49,12 +48,13 @@ data SimplePrincipalConfig
 
 data SimpleQuotaConfig
    = SimpleQuotaConfig
-   { cfgQuotaMaxIdleSessionTTL    :: Maybe Word64
-   , cfgQuotaMaxPacketSize        :: Maybe Word64
-   , cfgQuotaMaxPacketIdentifiers :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQoS0     :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQoS1     :: Maybe Word64
-   , cfgQuotaMaxQueueSizeQoS2     :: Maybe Word64
+   { cfgQuotaMaxSessions          :: Maybe Int
+   , cfgQuotaMaxIdleSessionTTL    :: Maybe Int
+   , cfgQuotaMaxPacketSize        :: Maybe Int
+   , cfgQuotaMaxPacketIdentifiers :: Maybe Int
+   , cfgQuotaMaxQueueSizeQoS0     :: Maybe Int
+   , cfgQuotaMaxQueueSizeQoS1     :: Maybe Int
+   , cfgQuotaMaxQueueSizeQoS2     :: Maybe Int
    } deriving (Eq, Ord, Show)
 
 instance Authenticator SimpleAuthenticator where
@@ -110,7 +110,8 @@ instance Authenticator SimpleAuthenticator where
       -- Prefers a user quota property over the default quota property.
       mergeQuota Nothing defaultQuota = defaultQuota
       mergeQuota (Just quota) defaultQuota = Quota {
-          quotaMaxIdleSessionTTL    = fromMaybe (quotaMaxIdleSessionTTL    defaultQuota) (cfgQuotaMaxIdleSessionTTL    quota)
+          quotaMaxSessions          = fromMaybe (quotaMaxSessions          defaultQuota) (cfgQuotaMaxSessions          quota)
+        , quotaMaxIdleSessionTTL    = fromMaybe (quotaMaxIdleSessionTTL    defaultQuota) (cfgQuotaMaxIdleSessionTTL    quota)
         , quotaMaxPacketSize        = fromMaybe (quotaMaxPacketSize        defaultQuota) (cfgQuotaMaxPacketSize        quota)
         , quotaMaxPacketIdentifiers = fromMaybe (quotaMaxPacketIdentifiers defaultQuota) (cfgQuotaMaxPacketIdentifiers quota)
         , quotaMaxQueueSizeQoS0     = fromMaybe (quotaMaxQueueSizeQoS0     defaultQuota) (cfgQuotaMaxQueueSizeQoS0     quota)
@@ -132,7 +133,8 @@ instance FromJSON SimplePrincipalConfig where
 
 instance FromJSON SimpleQuotaConfig where
   parseJSON (Object v) = SimpleQuotaConfig
-    <$> v .:? "maxIdleSessionTTL"
+    <$> v .:? "maxSessions"
+    <*> v .:? "maxIdleSessionTTL"
     <*> v .:? "maxPacketSize"
     <*> v .:? "maxPacketIdentifiers"
     <*> v .:? "maxQueueSizeQoS0"
@@ -142,7 +144,8 @@ instance FromJSON SimpleQuotaConfig where
 
 instance FromJSON Quota where
   parseJSON (Object v) = Quota
-    <$> v .: "maxIdleSessionTTL"
+    <$> v .: "maxSessions"
+    <*> v .: "maxIdleSessionTTL"
     <*> v .: "maxPacketSize"
     <*> v .: "maxPacketIdentifiers"
     <*> v .: "maxQueueSizeQoS0"

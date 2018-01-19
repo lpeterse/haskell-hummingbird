@@ -1,5 +1,6 @@
 auth:
   defaultQuota:
+    maxSessions:          1
     maxIdleSessionTTL:    60
     maxPacketSize:        65535
     maxPacketIdentifiers: 10

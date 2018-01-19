@@ -4,7 +4,7 @@ packages:
 extra-deps:
   - socket-unix-0.2.0.0
   - git: https://github.com/lpeterse/haskell-mqtt.git
-    commit: 76bcba1365959b9115b95e41cb10f9e3b1474210
+    commit: 969db1c2fe7d77af6f0f830c65814b0f4959e04d
   - git: https://github.com/lpeterse/haskell-networking.git
     commit: c131db3c27a582387a6396c134e62ba37a1865bf
 flags: {}
