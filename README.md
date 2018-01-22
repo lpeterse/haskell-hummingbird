@@ -1,4 +1,4 @@
-hummingbird MQTT broker
+hummingbird MQTT broker [![Hackage](https://img.shields.io/github/release/lpeterse/haskell-hummingbird.svg)](https://github.com/lpeterse/haskell-hummingbird/releases) [![Travis](https://img.shields.io/travis/lpeterse/haskell-hummingbird.svg)](https://travis-ci.org/lpeterse/haskell-hummingbird)
 =======================
 
 This is a multi-threaded MQTT broker (framework) written in Haskell.
