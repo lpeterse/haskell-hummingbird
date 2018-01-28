@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Hummingbird.Configuration where
 --------------------------------------------------------------------------------
@@ -46,8 +47,7 @@ data Config auth
    , prometheus :: Maybe Prometheus.Config
    }
 
-instance Show (Config auth) where
-  show _ = "TODO: Implement Show instance."
+deriving instance (Show (AuthenticatorConfig auth)) => Show (Config auth)
 
 newtype AdminConfig
    = AdminConfig

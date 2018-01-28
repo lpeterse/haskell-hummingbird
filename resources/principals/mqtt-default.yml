@@ -1,0 +1,5 @@
+uuid:     "e4f7f759-a7f0-4ae7-8140-766269e1c503"
+username: "mqtt-default"
+password: "$2y$14$z1TeFmnk9zirP1Ml55lVyuOWOhaYyqlHlvd6meaze2KDYPH8hrdsS"
+permissions:
+  "#": [ PUB, SUB, RET ]

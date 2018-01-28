@@ -53,6 +53,7 @@ library
     containers,
     data-default,
     data-default-class,
+    directory,
     haskeline,
     filepath,
     hslogger,

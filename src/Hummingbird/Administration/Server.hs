@@ -49,7 +49,7 @@ import qualified Hummingbird.Administration.Response as Response
 import qualified Hummingbird.Configuration           as C
 import           Hummingbird.Internal
 
-run :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Hummingbird auth -> IO a
+run :: (Authenticator auth, FromJSON (AuthenticatorConfig auth), Show (AuthenticatorConfig auth)) => Hummingbird auth -> IO a
 run hum = do
     config <- getConfig hum
     let path = C.adminSocketPath $ C.admin config
@@ -123,7 +123,7 @@ run hum = do
     sendMessage sock msg =
       void $ S.sendAllBuilder sock 4096 (B.execPut $ B.put msg) mempty
 
-process :: (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => Request.Request -> Hummingbird auth -> IO Response.Response
+process :: (Authenticator auth, FromJSON (AuthenticatorConfig auth), Show (AuthenticatorConfig auth)) => Request.Request -> Hummingbird auth -> IO Response.Response
 process Request.Help _ =
   pure Response.Help
 

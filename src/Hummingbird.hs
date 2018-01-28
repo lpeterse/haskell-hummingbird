@@ -52,7 +52,7 @@ instance Options BrokerOptions where
 instance Options VersionOptions where
   defineOptions = pure VersionOptions
 
-runWithVendorSettings :: forall auth. (Authenticator auth, FromJSON (AuthenticatorConfig auth)) => VendorSettings auth -> IO ()
+runWithVendorSettings :: forall auth. (Authenticator auth, FromJSON (AuthenticatorConfig auth), Show (AuthenticatorConfig auth)) => VendorSettings auth -> IO ()
 runWithVendorSettings vendorSettings = runSubcommand
   [ subcommand "cli"     Cli.run
   , subcommand "broker"  runBroker

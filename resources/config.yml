@@ -7,12 +7,8 @@ auth:
     maxQueueSizeQoS0:     100
     maxQueueSizeQoS1:     100
     maxQueueSizeQoS2:     100
-  principals:
-    32141bf2-e921-4053-b2fe-cafae8df9af0:
-      username: "hummingbird"
-      password: "$2y$08$rlSYAUbLQVWQlfwdmbnCM.hlWFE6iabxgJ1QKz4USTdL9mfsC9Y92"
-      permissions:
-        "#": [ PUB, SUB, RET ]
+  principalDirs:
+    - "/etc/hummingbird/principals"
 
 admin:
   socketPath: "/run/hummingbird/S.hummingbird-admin"
