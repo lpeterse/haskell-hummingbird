@@ -40,6 +40,20 @@ openssl req -x509 -sha256 -days 3650 -key private.pem -in csr.csr -out certifica
 openssl x509 -text -in certificate.pem
 ```
 
+## Using a self-signed certificate with `mosquitto_pub`
+
+```bash
+mosquitto_pub  -h localhost -p 8883 -V mqttv311 \
+  --cafile "resources/hummingbird_ca.crt" \
+  --cert "resources/mqtt-default.crt" \
+  --key "resources/mqtt-default.key" \
+  -t "abc/def" \
+  -m "asdasd"
+```
+
+If a username is not explicitly given, the broker will use the attribute `Subject: CN =` from the
+supplied certificate. An explicitly set username will override the one from the certificate.
+
 ## License
 
 Permission is hereby granted under the terms of the MIT license:
