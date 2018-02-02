@@ -19,6 +19,27 @@ The package exports modules which make it easy to compile a custom
 broker executable. Look into the `hummingbird` implemention for getting
 started!
 
+## Creating a self-signed certificate for client authentication
+
+The following script creates a 2048 bit RSA keypair and a self-signed
+certificate to be used by the client for authentication.
+
+The server only needs to know the public key. It will accept any certificate
+signed with the corresponding private key and doesn't use any other information
+from the certificate.
+
+```bash
+#!/bin/bash
+
+set -e
+
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -outform PEM -pubout -out public.pem
+openssl req -new -sha256 -key private.pem -out csr.csr -subj "/CN=$1"
+openssl req -x509 -sha256 -days 3650 -key private.pem -in csr.csr -out certificate.pem
+openssl x509 -text -in certificate.pem
+```
+
 ## License
 
 Permission is hereby granted under the terms of the MIT license:

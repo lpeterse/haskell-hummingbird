@@ -14,11 +14,13 @@ module Hummingbird.SimpleAuthenticator where
 -- Stability   :  experimental
 --------------------------------------------------------------------------------
 
+import           Control.Applicative
 import           Control.Exception
-import           Control.Monad                      (foldM)
+import           Control.Monad                      (foldM, join)
 import qualified Crypto.BCrypt                      as BCrypt
 import           Data.Aeson                         (FromJSON (..), (.:?))
 import           Data.Aeson.Types
+import qualified Data.ASN1.Types.String             as ASN1
 import qualified Data.Attoparsec.ByteString         as AP
 import qualified Data.ByteString                    as BS
 import           Data.Foldable
@@ -26,10 +28,11 @@ import           Data.Functor.Identity
 import qualified Data.Map                           as M
 import           Data.Maybe
 import qualified Data.Set                           as S
-import qualified Data.Text                          as T
 import qualified Data.Text.Encoding                 as T
+import qualified Data.Text.Encoding.Error           as T
 import           Data.Typeable
 import           Data.UUID                          (UUID)
+import qualified Data.X509                          as X509
 import qualified Data.Yaml                          as Yaml
 import qualified System.Directory                   as Dir
 import qualified System.FilePath                    as FilePath
@@ -40,22 +43,27 @@ import           Network.MQTT.Message
 import qualified Network.MQTT.Trie                  as R
 
 import qualified Hummingbird.Configuration          as C
+import qualified Hummingbird.Pkcs8                  as Pkcs8
 
 data SimpleAuthenticator
    = SimpleAuthenticator
    { authDefaultQuota         :: Quota
    , authPrincipalsByUUID     :: M.Map UUID SimplePrincipalConfig
-   , authPrincipalsByUsername :: M.Map T.Text SimplePrincipalConfig
+   , authPrincipalsByUsername :: M.Map Username SimplePrincipalConfig
    } deriving (Eq, Show)
 
 data SimplePrincipalConfig
    = SimplePrincipalConfig
    { cfgUUID         :: UUID
-   , cfgUsername     :: Maybe T.Text
+   , cfgUsername     :: Maybe Username
    , cfgPasswordHash :: Maybe BS.ByteString
    , cfgQuota        :: Maybe SimpleQuotaConfig
    , cfgPermissions  :: M.Map Filter (Identity [C.Privilege])
-   } deriving (Eq, Ord, Show)
+   , cfgPubKeys      :: [X509.PubKey]
+   } deriving (Eq, Show)
+
+instance Ord SimplePrincipalConfig where
+  compare x y = compare (cfgUUID x) (cfgUUID y)
 
 data SimpleQuotaConfig
    = SimpleQuotaConfig
@@ -80,28 +88,41 @@ instance Authenticator SimpleAuthenticator where
 
   newAuthenticator = newSimpleAuthenticator
 
-  authenticate auth req =
-    pure $ case requestCredentials req of
-      Just (reqUser, Just reqPass) ->
-        case mapMaybe (byUsernameAndPassword reqUser reqPass) $ M.assocs (authPrincipalsByUUID auth) of
-          [(uuid, _)] -> Just uuid
-          _           -> Nothing
-      _ -> Nothing
+  authenticate auth req = pure $ cfgUUID <$> (byPublicKey <|> byPassword)
     where
-      byUsernameAndPassword (Username reqUser) (Password reqPass) p@(_, principal) = do
-        -- Maybe monad - yields Nothing on failure!
-        user <- cfgUsername principal
-        pwhash <- cfgPasswordHash principal
+      byPublicKey = do
+        username <- mUsername
+        principal <- M.lookup username (authPrincipalsByUsername auth)
+        publicKey <- mPublicKey
+        -- The user is authenticated if username _and_ supplied and proven public key match.
+        if publicKey `elem` cfgPubKeys principal
+          then Just principal
+          else Nothing
+        where
+          mCert = case requestCertificateChain req of
+            Just (X509.CertificateChain [signedExact]) -> Just (X509.signedObject (X509.getSigned signedExact))
+            _                                          -> Nothing
+          mUsernameCN = mCert >>= \cert-> case X509.certSubjectDN cert of
+            X509.DistinguishedName [([2,5,4,3], X509.ASN1CharacterString ASN1.UTF8 bs)] -> Just (Username $ T.decodeUtf8With T.lenientDecode bs)
+            _ -> Nothing
+          mUsername = (fst <$> requestCredentials req) <|> mUsernameCN
+          mPublicKey = X509.certPubKey <$> mCert
+
+      byPassword = do
+        username <- fst <$> requestCredentials req
+        principal <- M.lookup username (authPrincipalsByUsername auth)
+        Password password <- join (snd <$> requestCredentials req)
+        passwordHash <- cfgPasswordHash principal
         -- The user is authenticated if username _and_ supplied password match.
-        if user == reqUser && BCrypt.validatePassword pwhash reqPass
-          then Just p
+        if BCrypt.validatePassword passwordHash password
+          then Just principal
           else Nothing
 
   getPrincipal auth pid =
     case M.lookup pid (authPrincipalsByUUID auth) of
       Nothing -> pure Nothing
       Just pc -> pure $ Just Principal {
-          principalUsername             = Username <$> cfgUsername pc
+          principalUsername             = cfgUsername pc
         , principalQuota                = mergeQuota (cfgQuota pc) (authDefaultQuota auth)
         , principalPublishPermissions   = R.mapMaybe f $ M.foldrWithKey' R.insert R.empty (cfgPermissions pc)
         , principalSubscribePermissions = R.mapMaybe g $ M.foldrWithKey' R.insert R.empty (cfgPermissions pc)
@@ -140,6 +161,7 @@ instance FromJSON SimplePrincipalConfig where
     <*> ((T.encodeUtf8 <$>) <$> v .:? "password")
     <*> v .:? "quota"
     <*> v .:? "permissions" .!= mempty
+    <*> v .:? "pubkeys" .!= []
   parseJSON invalid = typeMismatch "SimplePrincipalConfig" invalid
 
 instance FromJSON SimpleQuotaConfig where
@@ -152,6 +174,16 @@ instance FromJSON SimpleQuotaConfig where
     <*> v .:? "maxQueueSizeQoS1"
     <*> v .:? "maxQueueSizeQoS2"
   parseJSON invalid = typeMismatch "SimpleQuotaConfig" invalid
+
+instance FromJSON X509.PubKey where
+  parseJSON (String t) = case Pkcs8.publicKey (T.encodeUtf8 t) of
+    Left e  -> fail e
+    Right k -> pure k
+  parseJSON invalid    = typeMismatch "PubKey" invalid
+
+instance FromJSON Username where
+  parseJSON (String t) = pure (Username t)
+  parseJSON invalid    = typeMismatch "Username" invalid
 
 instance FromJSON Quota where
   parseJSON (Object v) = Quota
@@ -205,7 +237,9 @@ newSimpleAuthenticator config = do
           pure set
       | otherwise = Yaml.decodeFileEither path >>= \case
           Left e -> throwIO $ SimpleAuthenticationException $ "While parsing '" ++ show path ++ "': " ++ show e
-          Right p -> pure $! S.insert p set
+          Right p -> do
+            Log.debugM "SimpleAuthenticator" $ "Loaded " ++ show p
+            pure $! S.insert p set
 
     explore :: S.Set SimplePrincipalConfig -> FilePath -> IO (S.Set SimplePrincipalConfig)
     explore accum path = do
@@ -220,7 +254,7 @@ newSimpleAuthenticator config = do
           | M.member (cfgUUID p) acc = error $ "Duplicate UUID " ++ show (cfgUUID p)
           | otherwise                = M.insert (cfgUUID p) p acc
 
-    byUsername :: S.Set SimplePrincipalConfig -> M.Map T.Text SimplePrincipalConfig
+    byUsername :: S.Set SimplePrincipalConfig -> M.Map Username SimplePrincipalConfig
     byUsername = foldl' add mempty
       where
         add acc p = case cfgUsername p of

@@ -26,22 +26,22 @@ transports:
       bindAddress: 0.0.0.0
       bindPort: 1884
       listenBacklog: 5
-#  - type: tls
-#    transport:
-#      type: socket
-#      bindAddress: 0.0.0.0
-#      bindPort: 8883
-#      listenBacklog: 5
-#    wantClientCert: false
-#    caFilePath: ca.crt
-#    crtFilePath: cert.crt
-#    keyFilePath: cert.pem
+  - type: tls
+    transport:
+      type: socket
+      bindAddress: 0.0.0.0
+      bindPort: 8883
+      listenBacklog: 5
+    wantClientCert: true
+    caFilePath: resources/hummingbird_ca.crt
+    crtFilePath: resources/hummingbird_server.crt
+    keyFilePath: resources/hummingbird_server.key
 
 prometheus:
   bindAddress: "*"
   bindPort: 9001
 
 logging:
-  level: DEBUG
+  level: INFO
   appenders:
     - type: console

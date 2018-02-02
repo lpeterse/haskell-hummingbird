@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Hummingbird.Transport ( run, Config (..) ) where
 
@@ -21,6 +22,7 @@ import qualified Networking.Socket                  as SS
 import qualified Networking.TLS                     as SS
 import qualified Networking.WebSocket               as SS
 import qualified System.Log.Logger                  as LOG
+import qualified System.Log.Logger                  as Log
 import qualified System.Socket                      as S
 import qualified System.Socket.Family.Inet          as S
 import qualified System.Socket.Protocol.Default     as S
@@ -119,11 +121,13 @@ runTransport broker transportConfig = case transportConfig of
       pure (cfg', hooks')
     createWebSocketConfig _ _ = error "not a web socket config"
 
-runServerStack :: (Authenticator auth, SS.ServerStack transport, SS.StreamOriented transport, Server.MqttServerTransportStack transport) => Broker.Broker auth -> (SS.ServerConfig transport, SS.ServerHooks transport) -> IO ()
+runServerStack :: (Authenticator auth, SS.ServerStack transport, SS.StreamOriented transport, Server.MqttServerTransportStack transport, Show (SS.ConnectionInfo transport)) => Broker.Broker auth -> (SS.ServerConfig transport, SS.ServerHooks transport) -> IO ()
 runServerStack broker (config, hooks) =
   SS.withServer config $ \server->
-    forever $ SS.serveForever server hooks $ \connection info->
-      Server.serveConnection broker connection info
+    forever $ SS.serveForever server hooks $ \connection info-> do
+      Log.debugM "Transport" $ "New incoming connection: " ++ show info
+      Server.serveConnection broker connection info `catch` \e->
+        Log.warningM "Transport" $ "Connection lost with exception: " ++ show (e :: SomeException)
 
 -------------------------------------------------------------------
 -- Configuration

@@ -39,7 +39,8 @@ library
     Hummingbird.SimpleAuthenticator,
     Hummingbird.SysInfo,
     Hummingbird.Terminator,
-    Hummingbird.Transport
+    Hummingbird.Transport,
+    Hummingbird.Pkcs8
   build-depends: 
     base,
     aeson,
@@ -48,6 +49,11 @@ library
     bcrypt,
     binary,
     bytestring,
+    base64-bytestring,
+    pem,
+    asn1-types,
+    asn1-parse,
+    asn1-encoding,
     transformers,
     clock,
     containers,
