@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Hummingbird.Transport ( run, Config (..) ) where
 
@@ -65,44 +66,50 @@ runTransport broker transportConfig = case transportConfig of
     createSocketConfig _ = error "not a socket config"
 
     createSecureSocketConfig :: Config -> IO (SS.ServerConfig (SS.Tls (S.Socket S.Inet S.Stream S.Default)), SS.ServerHooks (SS.Tls (S.Socket S.Inet S.Stream S.Default)))
-    createSecureSocketConfig (TlsTransport tc cc ca crt key) = do
-      mcs <- X509.readCertificateStore ca
-      case mcs of
-        Nothing ->
-          error $ show ca ++ ": cannot read/interpret."
-        Just cs -> do
-          ecred <- TLS.credentialLoadX509 crt key
-          case ecred of
-            Left e -> error e
-            Right credential -> do
-              (cfg, hooks) <- createSocketConfig tc
-              let cfg' = SS.TlsServerConfig {
-                    SS.tlsTransportConfig = cfg
-                  , SS.tlsServerParams    = def {
-                      TLS.serverWantClientCert = cc
-                    , TLS.serverCACertificates = X509.listCertificates cs
-                    , TLS.serverShared = def {
-                        TLS.sharedCredentials = TLS.Credentials [credential]
-                      }
-                    , TLS.serverSupported = def {
-                      TLS.supportedCiphers =
-                        TLS.ciphersuite_default
-                      , TLS.supportedVersions =
-                          [ TLS.TLS12 ]
-                      , TLS.supportedHashSignatures =
-                          [ (TLS.HashSHA384, TLS.SignatureRSA)
-                          , (TLS.HashSHA384, TLS.SignatureECDSA)
-                          , (TLS.HashSHA256, TLS.SignatureRSA)
-                          , (TLS.HashSHA256, TLS.SignatureECDSA)
-                          ]
-                      }
-                    }
+    createSecureSocketConfig (TlsTransport tc cc mca crt key) = do
+      -- The CA certificates are only relevant in client certificate requests.
+      -- The server MAY send a list of CNs of CAs whose certificates it would accept.
+      -- The client MAY only send client certificates that match the listed CAs.
+      -- When using self-signed certificates this restriction is undesirable
+      -- as some libraries would actually stop sending their client certificate.
+      -- The server shall not need to know anything about CA certificates in this case.
+      caCerts <- case mca of
+        Nothing   -> pure []
+        Just path -> X509.readCertificateStore path >>= \case
+          Nothing -> error $ show path ++ ": cannot read/interpret."
+          Just cs -> pure (X509.listCertificates cs)
+
+      TLS.credentialLoadX509 crt key >>= \case
+        Left e -> error e
+        Right credential -> do
+          (cfg, hooks) <- createSocketConfig tc
+          let cfg' = SS.TlsServerConfig {
+                SS.tlsTransportConfig = cfg
+              , SS.tlsServerParams    = def {
+                  TLS.serverWantClientCert = cc
+                , TLS.serverCACertificates = caCerts
+                , TLS.serverShared = def {
+                    TLS.sharedCredentials = TLS.Credentials [credential]
                   }
-              let hooks' = SS.TlsServerHooks {
-                  SS.tlsTransportHooks = hooks
-                , SS.tlsServerHooks = def
+                , TLS.serverSupported = def {
+                  TLS.supportedCiphers =
+                    TLS.ciphersuite_default
+                  , TLS.supportedVersions =
+                      [ TLS.TLS12 ]
+                  , TLS.supportedHashSignatures =
+                      [ (TLS.HashSHA384, TLS.SignatureRSA)
+                      , (TLS.HashSHA384, TLS.SignatureECDSA)
+                      , (TLS.HashSHA256, TLS.SignatureRSA)
+                      , (TLS.HashSHA256, TLS.SignatureECDSA)
+                      ]
+                  }
                 }
-              pure (cfg', hooks')
+              }
+          let hooks' = SS.TlsServerHooks {
+              SS.tlsTransportHooks = hooks
+            , SS.tlsServerHooks = def
+            }
+          pure (cfg', hooks')
     createSecureSocketConfig _ = error "not a tls config"
 
     createWebSocketConfig :: Config -> (SS.ServerConfig a, SS.ServerHooks a) -> IO (SS.ServerConfig (SS.WebSocket a), SS.ServerHooks (SS.WebSocket a))
@@ -148,7 +155,7 @@ data Config
    | TlsTransport
      { tlsTransport      :: Config
      , tlsWantClientCert :: Bool
-     , tlsCaFilePath     :: FilePath
+     , tlsCaFilePath     :: Maybe FilePath
      , tlsCrtFilePath    :: FilePath
      , tlsKeyFilePath    :: FilePath
      }
@@ -170,7 +177,7 @@ instance FromJSON Config where
       "tls" -> TlsTransport
         <$> v .: "transport"
         <*> v .: "wantClientCert"
-        <*> v .: "caFilePath"
+        <*> v .:? "caFilePath"
         <*> v .: "crtFilePath"
         <*> v .: "keyFilePath"
       _ -> fail "Expected 'socket', 'websocket' or 'tls'."
@@ -181,13 +188,13 @@ instance (Typeable f, Typeable t, Typeable p, S.Family f, S.Protocol p, S.Type t
     remoteAddr <- S.hostName <$> S.getNameInfo addr (S.niNumericHost `mappend` S.niNumericService)
     pure ConnectionRequest {
         requestClientIdentifier = ClientIdentifier mempty
-      , requestSecure = False
-      , requestCleanSession = True
-      , requestCredentials = Nothing
-      , requestHttp = Nothing
+      , requestSecure           = False
+      , requestCleanSession     = True
+      , requestCredentials      = Nothing
+      , requestHttp             = Nothing
       , requestCertificateChain = Nothing
-      , requestRemoteAddress = Just remoteAddr
-      , requestWill = Nothing
+      , requestRemoteAddress    = Just remoteAddr
+      , requestWill             = Nothing
       }
 
 instance (SS.ServerStack a, Server.MqttServerTransportStack a) => Server.MqttServerTransportStack (SS.WebSocket a) where
