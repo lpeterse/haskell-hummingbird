@@ -34,6 +34,7 @@ import           Control.Exception
 import           Control.Monad
 import           Data.Aeson
 import           Data.Default.Class
+import qualified Data.X509                          as X509
 import qualified Prometheus
 import           System.Exit
 import           System.IO
@@ -113,14 +114,13 @@ new settings = do
         Broker.onConnectionAccepted = \req session-> do
           Prometheus.incCounter (Prometheus.hummingbird_connections_accepted_total metrics)
           Log.infoM "hummingbird" $
-            "Connection from " ++ show (Authentication.requestRemoteAddress req) ++
-            " associated with " ++ show (Session.principalIdentifier session) ++
-            " and " ++ show (Session.identifier session) ++  "."
+            "Connection attempt " ++ showConnectionRequestSummary req ++
+            " accepted: Associated with session " ++ show (Session.identifier session) ++  "."
 
       , Broker.onConnectionRejected = \req reason-> do
           Prometheus.incCounter (Prometheus.hummingbird_connections_rejected_total metrics)
           Log.warningM "hummingbird" $
-            "Connection from " ++ show (Authentication.requestRemoteAddress req) ++
+            "Connection attempt " ++ showConnectionRequestSummary req ++
             " rejected: " ++ show reason ++ "."
 
       , Broker.onConnectionClosed = \session-> do
@@ -141,6 +141,25 @@ new settings = do
       , Broker.onPublishDownstream = \_->
           Prometheus.incCounter (Prometheus.hummingbird_publications_downstream_total metrics)
       }
+
+    showConnectionRequestSummary req =
+      "(" ++ x1 ++ ", " ++ x2 ++ ", " ++ x3 ++ ", " ++ x4 ++ ")"
+      where
+        x1 = case Authentication.requestCredentials req of
+          Nothing           -> "username: no, no password: no"
+          Just (u, Nothing) -> "username: " ++ show u ++ ", password: no"
+          Just (u, Just _)  ->  "username: " ++ show u ++ ", password: yes"
+        x2 = "remote address: " ++ case Authentication.requestRemoteAddress req of
+          Nothing -> "no"
+          Just r  -> show r
+        x3 = "secure: " ++ if Authentication.requestSecure req
+          then "yes"
+          else "no"
+        x4 = "certificates: " ++ case Authentication.requestCertificateChain req of
+          Just (X509.CertificateChain c) -> case c of
+            [signedExact] -> show (X509.signedObject (X509.getSigned signedExact))
+            cs            -> show (length cs)
+          Nothing -> "no"
 
 start :: Authenticator auth => Hummingbird auth -> IO ()
 start hum = do

@@ -31,8 +31,7 @@ transports:
 #      bindAddress: 0.0.0.0
 #      bindPort: 8883
 #      listenBacklog: 5
-#    wantClientCert: false
-#    caFilePath: /etc/hummingbird/secrets/ca.crt
+#    wantClientCert: true
 #    crtFilePath: /etc/hummingbird/secrets/cert.crt
 #    keyFilePath: /etc/hummingbird/secrets/cert.key
 
