@@ -1,5 +1,26 @@
+hummingbird (0.8.0.0-1) unstable; urgency=medium
+
+  * Now loading principal data from single files.
+  * Added self-signed client cert authentication via TLS.
+  * Made configuration of server CA certificates optional.
+  * Improved logging of connection attempts.
+
+ -- Lars Petersen <info@lars-petersen.net>  Thu, 15 May 2018 11:00:00 +0100
+
+hummingbird (0.7.0.0-1) unstable; urgency=medium
+
+  * Added max sessions.
+
+ -- Lars Petersen <info@lars-petersen.net>  Thu, 19 Jan 2018 17:24:27 +0100
+
+hummingbird (0.6.0.0-1) unstable; urgency=medium
+
+  * Added connection limit.
+
+ -- Lars Petersen <info@lars-petersen.net>  Fri, 19 Jan 2018 13:10:00 +0000
+
 hummingbird (0.5.0.0-1) unstable; urgency=medium
 
   * Initial release.
 
- -- Lars Petersen <info@lars-petersen>  Thu, 18 Jan 2018 12:47:32 +0100
+ -- Lars Petersen <info@lars-petersen.net>  Thu, 18 Jan 2018 12:47:32 +0100

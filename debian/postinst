@@ -7,3 +7,5 @@ DIR_RES=/usr/share/${SERVICE}/resources
 if [ ! -f ${DIR_ETC}/config.yml ]; then
   cp ${DIR_RES}/config.yml ${DIR_ETC}/
 fi
+
+# cp -r ${DIR_RES}/principals/* ${DIR_ETC}/principals/

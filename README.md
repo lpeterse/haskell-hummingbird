@@ -13,6 +13,36 @@ broker with configuration files, logging, authentication etc.
 If this is not sufficient for your use case you might also consider to
 assemble your own broker (i.e. with a custom authentication mechanism).
 
+## Quick Start
+
+Download a [release](https://github.com/lpeterse/haskell-hummingbird/releases) and install it via
+
+``` sh
+sudo dpkg -i hummingbird_w.x.y.z-1_amd64.deb
+```
+
+You now want to adapt `/etc/hummingbird/config.yml` to suit your needs.
+The broker comes with no configured users, so you might want to use the following file as a starting point:
+`/usr/share/hummingbird/resources/principals/mqtt-default.yml` and copy the new user file to `/etc/hummingbird/principals/`.
+``` sh
+cp /usr/share/hummingbird/resources/principals/mqtt-default.yml /etc/hummingbird/principals/
+```
+
+To generate a bcrypt encrypted password salt+hash pair, you can use a subcommand of hummingbird
+``` sh
+hummingbird pwhash
+```
+
+All `*.yml` files in `principals` and its subfolders will be read by the broker.
+
+Every change in configuration or authentication needs a restart of this feature
+``` sh
+sudo hummingbird cli --interactive=false --command="config reload"
+sudo hummingbird cli --interactive=false --command="auth restart"
+```
+
+If you don't want to use `sudo`, the executing user has to be in the `hummingbird` group.
+
 ## Customized brokers
 
 The package exports modules which make it easy to compile a custom

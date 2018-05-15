@@ -6,7 +6,7 @@ description:
 
   If this is not sufficient for your use case you might also consider to
   assemble your own broker (i.e. with a custom authentication mechanism).
-version:             0.7.0.0
+version:             0.8.0.0
 license:             MIT
 license-file:        LICENSE
 author:              Lars Petersen

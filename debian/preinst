@@ -4,6 +4,7 @@ GROUP=hummingbird
 
 DIR_ETC="/etc/$SERVICE"
 DIR_SEC="/etc/$SERVICE/secrets"
+DIR_PRIN="/etc/$SERVICE/principals"
 DIR_HOME="/var/lib/$SERVICE"
 
 # Create user and group (if not exists)
@@ -14,10 +15,11 @@ else
   useradd --home-dir $DIR_HOME --no-create-home --system --shell /usr/bin/false --user-group $USER
 fi
 
-mkdir -p $DIR_HOME $DIR_ETC $DIR_SEC
+mkdir -p $DIR_HOME $DIR_ETC $DIR_SEC $DIR_PRIN
 
 chown root:root $DIR_ETC
 chown root:$GROUP $DIR_SEC
+chown root:$GROUP $DIR_PRIN
 chown $USER:$GROUP $DIR_HOME
 chmod 755 $DIR_ETC
-chmod 750 $DIR_HOME $DIR_SEC
+chmod 750 $DIR_HOME $DIR_SEC $DIR_PRIN
