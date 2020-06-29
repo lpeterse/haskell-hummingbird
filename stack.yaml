@@ -1,11 +1,14 @@
-resolver: lts-10.3
+resolver: lts-16.3
 packages:
 - "."
 extra-deps:
+  - socket-0.8.3.0
   - socket-unix-0.2.0.0
+  - prometheus-metrics-ghc-1.0.1
+  - wai-middleware-prometheus-1.0.0
   - git: https://github.com/lpeterse/haskell-mqtt.git
-    commit: a6a6efa33875bede5fc4ef057c16d85f19ff4951
+    commit: dd4eb856edd50439c6e73eda5878a5b6624e3eba
   - git: https://github.com/lpeterse/haskell-networking.git
-    commit: c131db3c27a582387a6396c134e62ba37a1865bf
+    commit: b79d22a2b95c6ba4bb16b5b47bfb0ea06df9ddbd
 flags: {}
 extra-package-dbs: []

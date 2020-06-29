@@ -4,7 +4,7 @@ VERSION           := $(shell grep -oP '^version:\s+\K([0-9].[0-9].[0-9].[0-9])' 
 PACKAGE           := hummingbird
 DEBFILE           := ${PACKAGE}_${VERSION}-1_amd64.deb
 
-all: build test doc
+all: build test
 
 build:
 	stack build

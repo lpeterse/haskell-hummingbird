@@ -1,4 +1,4 @@
-FROM        ubuntu:16.04
+FROM        ubuntu:18.04
 MAINTAINER  Lars Petersen <info@lars-petersen.net>
 
 RUN         DEBIAN_FRONTEND=noninteractive apt-get update && \
@@ -30,9 +30,10 @@ RUN         mkdir -p ~/.local/bin && \
             chmod a+x ~/.local/bin/stack && \
             stack update
 COPY        stack.yaml .
-RUN         stack setup --verbose 2>&1
-
+COPY        stack.yaml.lock .
 COPY        hummingbird.cabal .
+
+RUN         stack setup --verbose 2>&1
 RUN         stack install --only-dependencies 2>&1
 
 COPY        src src

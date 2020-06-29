@@ -18,7 +18,6 @@ import           Control.Applicative
 import           Control.Exception
 import           Control.Monad                      (foldM, join)
 import qualified Crypto.BCrypt                      as BCrypt
-import           Data.Aeson                         (FromJSON (..), (.:?))
 import           Data.Aeson.Types
 import qualified Data.ASN1.Types.String             as ASN1
 import qualified Data.Attoparsec.ByteString         as AP

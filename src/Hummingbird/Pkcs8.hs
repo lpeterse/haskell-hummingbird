@@ -7,7 +7,6 @@ import qualified Data.ASN1.Encoding         as ASN1
 import qualified Data.ASN1.Types            as ASN1
 import qualified Data.Attoparsec.ByteString as A
 import qualified Data.ByteString            as BS
-import           Data.Monoid                ((<>))
 import qualified Data.PEM                   as PEM
 import qualified Data.X509                  as X509
 
